@@ -7,3 +7,6 @@ data/processed/
 data/alerts.db
 data/raw/
 .DS_Store
+data/sample/*.csv
+!data/sample/sample_flights.csv
+!data/sample/training_flights.csv

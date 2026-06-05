@@ -3,11 +3,7 @@ import numpy as np
 
 
 REQUIRED_COLUMNS = {"flight_id", "scheduled_time", "pax_count", "delay_min", "checkin_desks"}
-
-# columns from the real airport export format
-AIRPORT_SCHEMA = {
-    "departure_flight", "departure_time", "departure_pax"
-}
+AIRPORT_SCHEMA = {"departure_flight", "departure_time", "departure_pax"}
 
 
 def _normalize_airport_schema(df: pd.DataFrame) -> pd.DataFrame:

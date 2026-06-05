@@ -19,6 +19,24 @@ with st.sidebar:
     st.caption("AirHack 2026 | Check-in Operations")
     st.divider()
 
+    with st.expander("Claude API Key", expanded=not st.session_state.get("api_key")):
+        key_input = st.text_input(
+            "Anthropic API key",
+            value=st.session_state.get("api_key", ""),
+            type="password",
+            placeholder="sk-ant-...",
+            help="Get yours at console.anthropic.com — only needed for AI Insights",
+        )
+        if key_input != st.session_state.get("api_key", ""):
+            st.session_state["api_key"] = key_input
+            st.rerun()
+        if st.session_state.get("api_key"):
+            st.success("API key set")
+        else:
+            st.info("No key — AI Insights will use auto-summary")
+
+    st.divider()
+
     uploaded = st.file_uploader("Upload flight schedule (CSV)", type=["csv"])
     if uploaded:
         resp = requests.post(
@@ -173,7 +191,10 @@ elif page == "AI Insights":
             try:
                 r = requests.post(
                     f"{API_BASE}/insights",
-                    json={"question": question or None},
+                    json={
+                        "question": question or None,
+                        "api_key": st.session_state.get("api_key") or None,
+                    },
                     timeout=120,
                 )
                 if r.ok:

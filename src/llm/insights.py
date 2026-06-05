@@ -93,11 +93,14 @@ def get_insights(
     predictions: pd.DataFrame,
     alerts: list[dict],
     question: str | None = None,
+    api_key: str | None = None,
 ) -> str:
-    if not _has_api_key():
+    resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not resolved_key:
         return _fallback_insights(predictions, alerts, question)
 
-    client = _get_client()
+    import anthropic
+    client = anthropic.Anthropic(api_key=resolved_key)
     prompt = _build_prompt(predictions, alerts, question)
 
     response = client.messages.create(

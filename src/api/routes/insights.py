@@ -13,6 +13,7 @@ UPLOAD_PATH = Path("data/processed/uploaded_schedule.csv")
 
 class InsightRequest(BaseModel):
     question: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 @router.post("")
@@ -20,7 +21,6 @@ async def get_insights(body: InsightRequest = InsightRequest()):
     from src.model.train import load_model
     from src.model.predict import predict_next_day
     from src.llm.insights import get_insights as llm_insights
-    from src.data.cleaner import clean_flights
 
     if not UPLOAD_PATH.exists():
         raise HTTPException(404, "No schedule uploaded. POST /data/upload first.")
@@ -34,5 +34,9 @@ async def get_insights(body: InsightRequest = InsightRequest()):
     predictions = predict_next_day(model, df)
     alerts = get_alerts(status="OPEN")
 
-    insight_text = llm_insights(predictions, alerts, question=body.question)
+    insight_text = llm_insights(
+        predictions, alerts,
+        question=body.question,
+        api_key=body.api_key,
+    )
     return {"insight": insight_text}

@@ -21,7 +21,13 @@ async def upload_schedule(file: UploadFile = File(...)):
         df = load_flights_from_bytes(content, file.filename)
         df = clean_flights(df)
     except Exception as e:
-        raise HTTPException(422, f"Invalid flight data: {e}")
+        try:
+            import io
+            preview = pd.read_csv(io.BytesIO(content), nrows=1)
+            found = list(preview.columns)
+        except Exception:
+            found = "unknown"
+        raise HTTPException(422, f"Invalid flight data: {e}. Columns found: {found}")
 
     UPLOAD_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(UPLOAD_PATH, index=False)

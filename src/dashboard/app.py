@@ -26,12 +26,12 @@ st.markdown("""
     background: #07090c !important;
     border-right: 1px solid #161c26;
 }
-[data-testid="stSidebar"] * { color: #64748b !important; }
+[data-testid="stSidebar"] * { color: #94a3b8 !important; }
 [data-testid="stSidebar"] .stRadio label {
-    font-size: 0.78rem !important;
+    font-size: 0.9rem !important;
     font-weight: 600 !important;
-    padding: 7px 0 !important;
-    letter-spacing: 0.08em !important;
+    padding: 8px 0 !important;
+    letter-spacing: 0.06em !important;
     text-transform: uppercase !important;
     border-radius: 4px;
 }
@@ -41,13 +41,13 @@ st.markdown("""
 /* IAS hero */
 .ias-hero { padding: 24px 0 18px; margin-bottom: 6px; }
 .ias-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
-.ias-code { font-size: 3.8rem; font-weight: 900; color: #4ade80; line-height: 1; letter-spacing: -0.03em; }
-.ias-title { font-size: 1.5rem; font-weight: 700; color: #e2e8f0; }
-.ias-sub { font-size: 0.72rem; font-weight: 600; color: #334155; text-transform: uppercase; letter-spacing: 0.14em; }
+.ias-code { font-size: 4.2rem; font-weight: 900; color: #4ade80; line-height: 1; letter-spacing: -0.03em; }
+.ias-title { font-size: 1.8rem; font-weight: 700; color: #e2e8f0; }
+.ias-sub { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.14em; }
 
 /* page section label */
 .sec-label {
-    font-size: 9px; font-weight: 700; color: #334155;
+    font-size: 11px; font-weight: 700; color: #64748b;
     text-transform: uppercase; letter-spacing: 0.14em;
     margin-bottom: 10px; margin-top: 20px;
 }
@@ -59,44 +59,47 @@ st.markdown("""
     border-radius: 5px; margin-bottom: 20px; overflow: hidden;
 }
 .stat-cell {
-    flex: 1; padding: 11px 14px;
+    flex: 1; padding: 14px 18px;
     border-right: 1px solid #161c26;
     min-width: 0;
 }
 .stat-cell:last-child { border-right: none; }
-.stat-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #334155; margin-bottom: 5px; white-space: nowrap; }
-.stat-val { font-size: 1rem; font-weight: 800; color: #e2e8f0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #64748b; margin-bottom: 6px; white-space: nowrap; }
+.stat-val { font-size: 1.15rem; font-weight: 800; color: #e2e8f0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-val.green { color: #4ade80; }
 .stat-val.amber { color: #fb923c; }
 .stat-val.red   { color: #f87171; }
-.stat-tag { display:inline-block; padding:2px 8px; border-radius:3px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-top:4px; }
+.stat-tag { display:inline-block; padding:3px 10px; border-radius:3px; font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-top:4px; }
 .tag-green { background:#4ade8018; color:#4ade80; border:1px solid #4ade8030; }
 .tag-amber { background:#fb923c18; color:#fb923c; border:1px solid #fb923c30; }
 .tag-red   { background:#f8717118; color:#f87171; border:1px solid #f8717130; }
 .tag-blue  { background:#60a5fa18; color:#60a5fa; border:1px solid #60a5fa30; }
+.tag-checkin  { background:#4ade8022; color:#4ade80; border:1px solid #4ade8050; }
+.tag-security { background:#60a5fa22; color:#60a5fa; border:1px solid #60a5fa50; }
+.tag-gate     { background:#a78bfa22; color:#a78bfa; border:1px solid #a78bfa50; }
 
 /* KPI row */
 .kpi-row { display: flex; gap: 1px; margin-bottom: 16px; background: #161c26; border-radius: 5px; overflow: hidden; border: 1px solid #161c26; }
-.kpi-box { flex: 1; background: #0f1318; padding: 14px 16px; }
+.kpi-box { flex: 1; background: #0f1318; padding: 18px 20px; }
 .kpi-box.hl { background: #0b1a10; }
-.kpi-val { font-size: 1.55rem; font-weight: 800; color: #e2e8f0; line-height: 1.1; }
+.kpi-val { font-size: 1.8rem; font-weight: 800; color: #e2e8f0; line-height: 1.1; }
 .kpi-val.green { color: #4ade80; }
-.kpi-lbl { font-size: 8px; font-weight: 700; color: #334155; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.12em; }
+.kpi-lbl { font-size: 10px; font-weight: 700; color: #64748b; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.1em; }
 
 /* alert cards */
 .alert-card {
-    border-radius: 4px; padding: 12px 14px; margin-bottom: 8px;
+    border-radius: 4px; padding: 14px 18px; margin-bottom: 8px;
     background: #0f1318; color: #c8d5e5;
-    border: 1px solid #161c26; border-left: 3px solid #334155;
+    border: 1px solid #161c26; border-left: 3px solid #64748b;
 }
 .alert-open  { border-left-color: #f87171; background: #110c0c; border-color: #1e1010; border-left-color: #f87171; }
 .alert-close { border-left-color: #4ade80; background: #090f0b; border-color: #101e13; border-left-color: #4ade80; }
 .alert-ack   { border-left-color: #fb923c; background: #0f0e09; border-color: #1c180a; border-left-color: #fb923c; }
-.alert-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 5px; color: #e2e8f0; }
-.alert-sub   { font-size: 0.76rem; color: #334155; margin-top: 4px; }
+.alert-title { font-size: 1rem; font-weight: 700; margin-bottom: 5px; color: #e2e8f0; }
+.alert-sub   { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
 .desk-tag {
-    display: inline-block; padding: 2px 8px; border-radius: 3px;
-    font-size: 0.68rem; font-weight: 700; margin-top: 4px;
+    display: inline-block; padding: 3px 10px; border-radius: 3px;
+    font-size: 0.75rem; font-weight: 700; margin-top: 4px;
     text-transform: uppercase; letter-spacing: 0.06em;
 }
 .desk-open  { background: #f8717118; color: #f87171; border: 1px solid #f8717130; }
@@ -104,8 +107,8 @@ st.markdown("""
 .desk-ok    { background: #fb923c18; color: #fb923c; border: 1px solid #fb923c30; }
 
 /* sidebar status pills */
-.dot-green { color: #4ade80; font-size: 0.65rem; }
-.dot-red   { color: #f87171; font-size: 0.65rem; }
+.dot-green { color: #4ade80; font-size: 0.75rem; }
+.dot-red   { color: #f87171; font-size: 0.75rem; }
 
 /* hide streamlit branding */
 #MainMenu { visibility: hidden; }
@@ -219,7 +222,7 @@ with st.sidebar:
     st.markdown("""
 <div style="padding:18px 0 12px">
   <div style="font-size:1.05rem;font-weight:900;color:#4ade80;letter-spacing:-0.01em">✈ SOLONOI</div>
-  <div style="font-size:0.68rem;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">Passenger Flow · IAS</div>
+  <div style="font-size:0.68rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">Passenger Flow · IAS</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -235,22 +238,22 @@ with st.sidebar:
 
     dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     api_txt = "API ONLINE" if online else "API OFFLINE"
-    ca_col  = "#f87171" if open_alerts     else "#334155"
-    sc_col  = "#f87171" if open_sec_alerts else "#334155"
-    ga_col  = "#f87171" if open_gate_alerts else "#334155"
+    ca_col  = "#f87171" if open_alerts     else "#64748b"
+    sc_col  = "#f87171" if open_sec_alerts else "#64748b"
+    ga_col  = "#f87171" if open_gate_alerts else "#64748b"
     st.markdown(f"""
-<div style="background:#0f1318;border:1px solid #161c26;border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:0.72rem">
-  <div style="margin-bottom:7px">{dot} <span style="color:#64748b;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{api_txt}</span></div>
-  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:4px">
-    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Check-in</span>
+<div style="background:#0f1318;border:1px solid #161c26;border-radius:4px;padding:12px 14px;margin-bottom:12px;font-size:0.82rem">
+  <div style="margin-bottom:8px">{dot} <span style="color:#64748b;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{api_txt}</span></div>
+  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:5px">
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Check-in</span>
     <span><b style="color:#e2e8f0">{current_desks}</b> desks &nbsp;<b style="color:{ca_col}">{open_alerts}</b> alerts</span>
   </div>
-  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:4px">
-    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Security</span>
+  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:5px">
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Security</span>
     <span><b style="color:#e2e8f0">{current_lanes}</b> lanes &nbsp;<b style="color:{sc_col}">{open_sec_alerts}</b> alerts</span>
   </div>
   <div style="display:flex;justify-content:space-between;color:#64748b">
-    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Gate</span>
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Gate</span>
     <span><b style="color:#e2e8f0">{current_agents}</b> agents &nbsp;<b style="color:{ga_col}">{open_gate_alerts}</b> alerts</span>
   </div>
 </div>
@@ -758,12 +761,12 @@ elif page == "Check-in":
                 )
 
         fig.update_layout(
-            title=dict(text="CHECK-IN · PREDICTED LOAD · 30-MIN WINDOWS", font=dict(size=10, color="#334155"), x=0),
+            title=dict(text="CHECK-IN · PREDICTED LOAD · 30-MIN WINDOWS", font=dict(size=10, color="#64748b"), x=0),
             plot_bgcolor="#0b0d10",
             paper_bgcolor="#0b0d10",
             font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
-            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             margin=dict(l=10, r=90, t=36, b=10),
             height=320,
         )
@@ -779,7 +782,7 @@ elif page == "Check-in":
         st.markdown("""
 <div class="stat-strip">
   <div class="stat-cell"><div class="stat-lbl">Forecast</div><div class="stat-val"><span class="stat-tag tag-amber">No Data</span></div></div>
-  <div class="stat-cell"><div class="stat-lbl">Action Required</div><div class="stat-val" style="font-size:0.85rem;color:#334155">Upload schedule → Run Forecast</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Action Required</div><div class="stat-val" style="font-size:0.85rem;color:#64748b">Upload schedule → Run Forecast</div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -790,91 +793,102 @@ elif page == "Alerts":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
-  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Check-in Alerts &nbsp;·&nbsp; Desk Management</div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; All Alerts &nbsp;·&nbsp; Check-in · Security · Gate</div>
 </div>
 """, unsafe_allow_html=True)
-
-    desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
-    current_desks = desk_resp["desks_open"] if desk_resp else 0
-
-    dc1, dc2, dc3 = st.columns([2, 1, 3])
-    with dc1:
-        new_desk_count = st.number_input(
-            "Desks currently open",
-            min_value=0, max_value=50,
-            value=current_desks,
-        )
-    with dc2:
-        st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
-        if st.button("Update", use_container_width=True):
-            requests.post(f"{API_BASE}/alerts/desks", json={"desks_open": new_desk_count})
-            st.cache_data.clear()
-            st.rerun()
-    with dc3:
-        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_desks}</b> open desk(s)</div>", unsafe_allow_html=True)
-
-    st.divider()
 
     emp_name = st.text_input("Your name (audit trail)", value=st.session_state.get("employee_name", ""), placeholder="Enter your name…")
     if emp_name:
         st.session_state["employee_name"] = emp_name
 
-    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
-    tab_open, tab_ack, tab_all = st.tabs(["Open", "Acknowledged", "All"])
+    if "alerts_source_filter" not in st.session_state:
+        st.session_state["alerts_source_filter"] = "All"
+    f1, f2, f3, f4 = st.columns(4)
+    for col, label in zip([f1, f2, f3, f4], ["All", "Check-in", "Security", "Gate"]):
+        active = st.session_state["alerts_source_filter"] == label
+        with col:
+            if st.button(label, use_container_width=True, type="primary" if active else "secondary", key=f"filter_{label}"):
+                st.session_state["alerts_source_filter"] = label
+                st.rerun()
+    source_filter = st.session_state["alerts_source_filter"]
 
-    def render_alerts(df: pd.DataFrame, show_ack: bool = False):
+    # Fetch all three alert sources and tag them
+    ci_df  = fetch_alerts()
+    sec_df = fetch_security_alerts()
+    gate_df = fetch_gate_alerts()
+
+    if not ci_df.empty:
+        ci_df["_source"] = "Check-in"
+        ci_df["_ack_endpoint"] = API_BASE + "/alerts/" + ci_df["id"].astype(str) + "/acknowledge"
+    if not sec_df.empty:
+        sec_df["_source"] = "Security"
+        sec_df["_ack_endpoint"] = API_BASE + "/security/alerts/" + sec_df["id"].astype(str) + "/acknowledge"
+    if not gate_df.empty:
+        gate_df["_source"] = "Gate"
+        gate_df["_ack_endpoint"] = API_BASE + "/gate/alerts/" + gate_df["id"].astype(str) + "/acknowledge"
+
+    all_combined = pd.concat([ci_df, sec_df, gate_df], ignore_index=True)
+
+    if source_filter != "All" and not all_combined.empty:
+        all_combined = all_combined[all_combined["_source"] == source_filter].reset_index(drop=True)
+
+    SOURCE_TAG = {"Check-in": "tag-checkin", "Security": "tag-security", "Gate": "tag-gate"}
+
+    def render_all_alerts(df: pd.DataFrame, show_ack: bool = False):
         if df.empty:
-            st.markdown("<div style='color:#1e2a3a; padding:20px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts in this category</div>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#64748b; padding:20px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts in this category</div>", unsafe_allow_html=True)
             return
         for _, row in df.iterrows():
-            alert_type  = row.get("type", "")
-            status      = row.get("status", "OPEN")
-            desks_open  = (row.get("desks_to_open") or 0) - (row.get("desks_to_add") or 0)
-            desks_need  = row.get("desks_to_open") or 0
-            desks_add   = row.get("desks_to_add") or 0
-            desks_close = row.get("desks_to_close") or 0
-            load        = row.get("predicted_load", "?")
-            win         = str(row.get("window_start", ""))[:16]
+            alert_type = row.get("type", "")
+            status     = row.get("status", "OPEN")
+            source     = row.get("_source", "Check-in")
+            ack_url    = row.get("_ack_endpoint", "")
+            load       = row.get("predicted_load", "?")
+            win        = str(row.get("window_start", ""))[:16]
+            src_tag    = SOURCE_TAG.get(source, "tag-blue")
 
+            # Action tag + card class
             if status == "ACKNOWLEDGED":
                 card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
-            elif alert_type == "checkin_close":
+            elif alert_type in ("checkin_close", "security_close", "gate_close"):
                 card_cls = "alert-close"
                 tag_cls  = "desk-close"
-                tag_txt  = f"Close {desks_close} desk(s)"
+                n = row.get("desks_to_close") or row.get("lanes_to_close") or row.get("agents_to_close") or 0
+                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}.get(source, "unit(s)")
+                tag_txt = f"Close {n} {unit}"
             else:
                 card_cls = "alert-open"
                 tag_cls  = "desk-open"
-                tag_txt  = f"Open {desks_add} more desk(s)"
-
-            desk_detail = f"{desks_open} open → need {desks_need}" if alert_type != "checkin_close" else f"{desks_open} open → reduce to {desks_need}"
+                n = row.get("desks_to_add") or row.get("lanes_to_add") or row.get("agents_to_add") or 0
+                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}.get(source, "unit(s)")
+                tag_txt = f"Open {n} more {unit}"
 
             col_card, col_btn = st.columns([5, 1])
             with col_card:
                 st.markdown(f"""
 <div class="alert-card {card_cls}">
   <div class="alert-title">{row['message']}</div>
+  <span class="stat-tag {src_tag}">{source}</span>&nbsp;
   <span class="desk-tag {tag_cls}">{tag_txt}</span>
-  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax &nbsp;·&nbsp; {desk_detail}</div>
+  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax</div>
 </div>""", unsafe_allow_html=True)
             with col_btn:
                 if show_ack and status == "OPEN":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
-                    if st.button("Confirm", key=f"ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/alerts/{row['id']}/acknowledge", json={"employee": emp})
-                        st.session_state.pop("desk_count_cache", None)
-                        st.session_state["current_page"] = "Alerts"
+                    if st.button("Confirm", key=f"ack_{source}_{row['id']}"):
+                        requests.post(ack_url, json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
 
-    all_alerts = fetch_alerts()
+    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+    tab_open, tab_ack, tab_all = st.tabs(["Open", "Acknowledged", "All"])
     with tab_open:
-        render_alerts(all_alerts[all_alerts["status"] == "OPEN"] if not all_alerts.empty else all_alerts, show_ack=True)
+        render_all_alerts(all_combined[all_combined["status"] == "OPEN"].reset_index(drop=True) if not all_combined.empty else all_combined, show_ack=True)
     with tab_ack:
-        render_alerts(all_alerts[all_alerts["status"] == "ACKNOWLEDGED"] if not all_alerts.empty else all_alerts)
+        render_all_alerts(all_combined[all_combined["status"] == "ACKNOWLEDGED"].reset_index(drop=True) if not all_combined.empty else all_combined)
     with tab_all:
-        render_alerts(all_alerts)
+        render_all_alerts(all_combined)
 
 
 # ── Simulation ─────────────────────────────────────────────────────────────────
@@ -904,20 +918,20 @@ canvas#c{display:block;border-radius:4px;border:1px solid #161c26;width:100%}
 .btn{padding:6px 16px;font-size:11px;border:none;border-radius:4px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
 .btn:active{transform:scale(.97)}
 .btn-s{background:#4ade80;color:#020d06;border:none}.btn-s:hover{background:#5bf58f}
-.btn-s:disabled{background:#162a1c;color:#334155;cursor:not-allowed}
+.btn-s:disabled{background:#162a1c;color:#64748b;cursor:not-allowed}
 .btn-p{background:#fb923c18;color:#fb923c;border:1px solid #fb923c30}.btn-p:hover{background:#fb923c30}
 .btn-p:disabled{background:#0f0e09;color:#3a2a15;border-color:#1c160a;cursor:not-allowed}
 .btn-r{background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30}.btn-r:hover{background:#60a5fa25}
 .stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#161c26;border-radius:4px;overflow:hidden;margin-top:6px}
 .sbox{text-align:center;padding:8px 3px;background:#0f1318}
-.slbl{color:#334155;font-size:8px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:700}
+.slbl{color:#64748b;font-size:8px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:700}
 .sval{font-size:15px;font-weight:800}
 .c-b{color:#60a5fa}.c-y{color:#fb923c}.c-g{color:#4ade80}.c-r{color:#f87171}.c-w{color:#e2e8f0}.c-o{color:#fb923c}
 .progress-wrap{height:4px;background:#0b0d10;border-radius:2px;margin-top:8px;overflow:hidden}
 .progress-bar{height:100%;background:linear-gradient(90deg,#4ade80,#fb923c);border-radius:2px;transition:width .3s}
-.prog-lbl{font-size:8px;color:#334155;text-align:center;margin-top:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.prog-lbl{font-size:8px;color:#64748b;text-align:center;margin-top:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .right{width:260px;flex-shrink:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26;display:flex;flex-direction:column;gap:8px;max-height:820px;overflow-y:auto}
-.sec-title{font-size:8px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
+.sec-title{font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
 .api-row{display:flex;gap:4px}
 .abtn{flex:1;padding:6px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
 .abtn:active{transform:scale(.97)}
@@ -943,7 +957,7 @@ canvas#c{display:block;border-radius:4px;border:1px solid #161c26;width:100%}
 .win-card-time{font-size:20px;font-weight:800;color:#e2e8f0;margin-bottom:5px;letter-spacing:-0.02em}
 .win-card-row{display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid #161c26}
 .win-card-row:last-child{border:none}
-.win-card-lbl{color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:9px}
+.win-card-lbl{color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:9px}
 .win-card-val{font-weight:700;color:#94a3b8}
 .win-card-val.alert-open{color:#f87171}
 .win-card-val.alert-close{color:#4ade80}
@@ -952,20 +966,20 @@ canvas#c{display:block;border-radius:4px;border:1px solid #161c26;width:100%}
 .alert-msg.close{background:#4ade8010;border-left:2px solid #4ade80;color:#4ade80}
 .load-btn{width:100%;padding:8px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#4ade80;color:#020d06;margin-top:6px;transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
 .load-btn:hover{background:#5bf58f}
-.load-btn:disabled{opacity:.35;cursor:not-allowed;background:#162a1c;color:#334155}
+.load-btn:disabled{opacity:.35;cursor:not-allowed;background:#162a1c;color:#64748b}
 .no-fc{font-size:10px;color:#1e2a3a;text-align:center;padding:16px 0;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .speed-box{background:#0b0d10;padding:8px;border-radius:4px;border:1px solid #161c26}
 .speed-row{display:flex;flex-direction:column;gap:3px}
-.speed-row label{font-size:9px;color:#334155;font-weight:700;display:flex;justify-content:space-between;margin-bottom:2px;text-transform:uppercase;letter-spacing:.08em}
+.speed-row label{font-size:9px;color:#64748b;font-weight:700;display:flex;justify-content:space-between;margin-bottom:2px;text-transform:uppercase;letter-spacing:.08em}
 .speed-row label span{color:#4ade80;font-weight:800;font-size:11px}
 .speed-row input[type=range]{width:100%;accent-color:#4ade80;cursor:pointer}
 .speed-hint{font-size:8px;color:#1e2a3a;margin-top:2px;font-weight:600}
 .day-btn{width:100%;padding:7px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30;transition:all .15s;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
 .day-btn:hover{background:#60a5fa25}
 .day-btn:disabled{opacity:.35;cursor:not-allowed}
-.day-prog{font-size:8px;color:#334155;text-align:center;margin-top:3px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.day-prog{font-size:8px;color:#64748b;text-align:center;margin-top:3px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
 .legend{display:flex;flex-wrap:wrap;gap:4px 10px}
-.leg{display:flex;align-items:center;gap:4px;font-size:8px;color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.leg{display:flex;align-items:center;gap:4px;font-size:8px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .lsq{width:8px;height:7px;border-radius:1px;flex-shrink:0}
 </style>
@@ -1682,7 +1696,7 @@ elif page == "Security":
             requests.post(f"{API_BASE}/security/lanes", json={"lanes_open": new_lane_count})
             st.rerun()
     with lc3:
-        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -1763,12 +1777,12 @@ elif page == "Security":
                 )
 
         fig.update_layout(
-            title=dict(text="SECURITY · PREDICTED LOAD · 30-MIN WINDOWS (+20 MIN OFFSET)", font=dict(size=10, color="#334155"), x=0),
+            title=dict(text="SECURITY · PREDICTED LOAD · 30-MIN WINDOWS (+20 MIN OFFSET)", font=dict(size=10, color="#64748b"), x=0),
             plot_bgcolor="#0b0d10",
             paper_bgcolor="#0b0d10",
             font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
-            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=90, t=36, b=10),
             height=320,
@@ -1851,7 +1865,7 @@ elif page == "Security":
         fig_s.update_layout(
             title="Security Sensor: Actual vs Predicted",
             plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#334155")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#64748b")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
         )
@@ -1950,7 +1964,7 @@ elif page == "Gate":
             requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_agent_count})
             st.rerun()
     with gc3:
-        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -2031,12 +2045,12 @@ elif page == "Gate":
                 )
 
         fig.update_layout(
-            title=dict(text="GATE · BOARDING LOAD · 30-MIN WINDOWS (+30 MIN OFFSET)", font=dict(size=10, color="#334155"), x=0),
+            title=dict(text="GATE · BOARDING LOAD · 30-MIN WINDOWS (+30 MIN OFFSET)", font=dict(size=10, color="#64748b"), x=0),
             plot_bgcolor="#0b0d10",
             paper_bgcolor="#0b0d10",
             font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
-            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=90, t=36, b=10),
             height=320,
@@ -2120,7 +2134,7 @@ elif page == "Gate":
         fig_g.update_layout(
             title="Gate Sensor: Actual vs Predicted",
             plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#334155")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#64748b")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
         )

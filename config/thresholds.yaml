@@ -1,4 +1,32 @@
 alert_cooldown_minutes: 30
+arrivals:
+  baseline_agents: 1
+  level_1:
+    agents_to_open: 2
+    message: Open 2 arrivals staff
+    threshold: 40
+  level_2:
+    agents_to_open: 3
+    message: Open 3 arrivals staff
+    threshold: 80
+  level_3:
+    agents_to_open: 4
+    message: "Open 4 arrivals staff — HIGH LOAD"
+    threshold: 120
+departures_gate:
+  baseline_agents: 1
+  level_1:
+    agents_to_open: 2
+    message: Open 2 gate agent(s)
+    threshold: 40
+  level_2:
+    agents_to_open: 3
+    message: Open 3 gate agents
+    threshold: 80
+  level_3:
+    agents_to_open: 4
+    message: "Open 4 gate agents — HIGH LOAD"
+    threshold: 120
 checkin:
   baseline_desks: 1
   level_1:

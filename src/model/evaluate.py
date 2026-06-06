@@ -10,9 +10,14 @@ from src.data.features import FEATURE_COLS, TARGET_COL
 MAPE_MIN_PAX = 10
 
 
-def evaluate(model: XGBRegressor, feature_matrix: pd.DataFrame) -> dict:
-    df = feature_matrix.dropna(subset=FEATURE_COLS + [TARGET_COL])
-    X  = df[FEATURE_COLS]
+def evaluate(
+    model: XGBRegressor,
+    feature_matrix: pd.DataFrame,
+    feature_cols: list[str] | None = None,
+) -> dict:
+    cols = feature_cols if feature_cols else FEATURE_COLS
+    df = feature_matrix.dropna(subset=cols + [TARGET_COL])
+    X  = df[cols]
     y  = df[TARGET_COL].values
 
     preds = model.predict(X)

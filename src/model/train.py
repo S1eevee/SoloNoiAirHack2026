@@ -10,10 +10,18 @@ from src.data.features import FEATURE_COLS, TARGET_COL
 MODEL_PATH = Path(__file__).parents[2] / "models" / "model.pkl"
 
 
-def train(feature_matrix: pd.DataFrame, save: bool = True) -> XGBRegressor:
-    df = feature_matrix.dropna(subset=FEATURE_COLS + [TARGET_COL])
+def train(
+    feature_matrix: pd.DataFrame,
+    save: bool = True,
+    model_path: Path | None = None,
+    feature_cols: list[str] | None = None,
+) -> XGBRegressor:
+    path = Path(model_path) if model_path else MODEL_PATH
+    cols = feature_cols if feature_cols else FEATURE_COLS
 
-    X = df[FEATURE_COLS]
+    df = feature_matrix.dropna(subset=cols + [TARGET_COL])
+
+    X = df[cols]
     y = df[TARGET_COL]
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -39,20 +47,22 @@ def train(feature_matrix: pd.DataFrame, save: bool = True) -> XGBRegressor:
     )
 
     if save:
-        MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump(model, MODEL_PATH)
-        print(f"Model saved → {MODEL_PATH}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(model, path)
+        print(f"Model saved → {path}")
 
     return model
 
 
 _model_cache: dict = {"model": None, "mtime": None}
 
-def load_model() -> XGBRegressor:
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"No trained model at {MODEL_PATH}. Run pipeline.py train first.")
-    mtime = MODEL_PATH.stat().st_mtime
-    if _model_cache["model"] is None or _model_cache["mtime"] != mtime:
-        _model_cache["model"] = joblib.load(MODEL_PATH)
-        _model_cache["mtime"] = mtime
-    return _model_cache["model"]
+def load_model(model_path: Path | None = None) -> XGBRegressor:
+    path = Path(model_path) if model_path else MODEL_PATH
+    if not path.exists():
+        raise FileNotFoundError(f"No trained model at {path}.")
+    mtime = path.stat().st_mtime
+    cache_key = str(path)
+    if _model_cache.get(cache_key) is None or _model_cache.get(f"{cache_key}_mtime") != mtime:
+        _model_cache[cache_key] = joblib.load(path)
+        _model_cache[f"{cache_key}_mtime"] = mtime
+    return _model_cache[cache_key]

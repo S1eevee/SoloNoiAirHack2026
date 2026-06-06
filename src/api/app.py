@@ -9,6 +9,8 @@ from src.api.routes.auth import router as auth_router
 from src.api.routes.demo import router as demo_router
 from src.api.routes.security import router as security_router
 from src.api.routes.gate import router as gate_router
+from src.api.routes.arrivals_route import router as arrivals_router
+from src.api.routes.departures_gate_route import router as departures_gate_router
 
 try:
     from src.api.routes.sensor import router as sensor_router
@@ -37,6 +39,8 @@ app.include_router(thresholds_router)
 app.include_router(demo_router)
 app.include_router(security_router)
 app.include_router(gate_router)
+app.include_router(arrivals_router)
+app.include_router(departures_gate_router)
 if _sensor_available:
     app.include_router(sensor_router)
 

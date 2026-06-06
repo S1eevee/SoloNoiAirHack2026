@@ -39,6 +39,22 @@ def _baseline_agents() -> int:
         return 1
 
 
+def _baseline_arrivals_agents() -> int:
+    try:
+        with open(CONFIG_PATH) as f:
+            return yaml.safe_load(f)["arrivals"].get("baseline_agents", 1)
+    except Exception:
+        return 1
+
+
+def _baseline_departures_gate_agents() -> int:
+    try:
+        with open(CONFIG_PATH) as f:
+            return yaml.safe_load(f)["departures_gate"].get("baseline_agents", 1)
+    except Exception:
+        return 1
+
+
 def init_db():
     with _connect() as conn:
         conn.execute("""
@@ -93,12 +109,27 @@ def init_db():
             )
         """)
         conn.execute("INSERT OR IGNORE INTO gate_agent_state (id, agents_open) VALUES (1, ?)", (_baseline_agents(),))
-        # add agents columns to alerts table for gate zone
         for col in ("agents_to_open INTEGER", "agents_to_add INTEGER", "agents_to_close INTEGER"):
             try:
                 conn.execute(f"ALTER TABLE alerts ADD COLUMN {col}")
             except sqlite3.OperationalError:
                 pass
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS arrivals_agent_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                agents_open INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        conn.execute("INSERT OR IGNORE INTO arrivals_agent_state (id, agents_open) VALUES (1, ?)", (_baseline_arrivals_agents(),))
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS departures_gate_agent_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                agents_open INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        conn.execute("INSERT OR IGNORE INTO departures_gate_agent_state (id, agents_open) VALUES (1, ?)", (_baseline_departures_gate_agents(),))
         conn.commit()
 
 
@@ -383,6 +414,176 @@ def acknowledge_gate_alert(alert_id: int, employee: str = "employee") -> bool:
         if alert["agents_to_open"] is not None:
             conn.execute(
                 "UPDATE gate_agent_state SET agents_open = ? WHERE id = 1",
+                (max(0, alert["agents_to_open"]),)
+            )
+        conn.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Arrivals agent state + alerts
+# ---------------------------------------------------------------------------
+
+def get_arrivals_agents_open() -> int:
+    init_db()
+    with _connect() as conn:
+        row = conn.execute("SELECT agents_open FROM arrivals_agent_state WHERE id = 1").fetchone()
+    return row["agents_open"] if row else 0
+
+
+def set_arrivals_agents_open(count: int):
+    init_db()
+    with _connect() as conn:
+        conn.execute("UPDATE arrivals_agent_state SET agents_open = ? WHERE id = 1", (max(0, count),))
+        conn.commit()
+
+
+def save_arrivals_alerts(alerts: list[dict]) -> list[int]:
+    init_db()
+    ids = []
+    with _connect() as conn:
+        for alert in alerts:
+            cur = conn.execute("""
+                INSERT INTO alerts
+                  (type, zone, window_start, predicted_load,
+                   agents_to_open, agents_to_add, agents_to_close,
+                   message, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                alert["type"], "arrivals",
+                alert["window_start"], alert.get("predicted_load"),
+                alert.get("agents_to_open"), alert.get("agents_to_add"), alert.get("agents_to_close"),
+                alert["message"], alert.get("status", "OPEN"),
+                datetime.utcnow().isoformat(),
+            ))
+            ids.append(cur.lastrowid)
+        conn.commit()
+    return ids
+
+
+def get_arrivals_alerts(status: str | None = None) -> list[dict]:
+    init_db()
+    with _connect() as conn:
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM alerts WHERE zone = 'arrivals' AND status = ? ORDER BY created_at DESC", (status,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM alerts WHERE zone = 'arrivals' ORDER BY created_at DESC"
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def clear_arrivals_alerts():
+    init_db()
+    with _connect() as conn:
+        conn.execute("DELETE FROM alerts WHERE zone = 'arrivals'")
+        conn.commit()
+
+
+def acknowledge_arrivals_alert(alert_id: int, employee: str = "employee") -> bool:
+    init_db()
+    with _connect() as conn:
+        alert = conn.execute(
+            "SELECT id, status, agents_to_open FROM alerts WHERE id = ? AND zone = 'arrivals'",
+            (alert_id,)
+        ).fetchone()
+        if not alert:
+            return False
+        conn.execute("""
+            UPDATE alerts
+            SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?
+            WHERE id = ?
+        """, (datetime.utcnow().isoformat(), employee, alert_id))
+        if alert["agents_to_open"] is not None:
+            conn.execute(
+                "UPDATE arrivals_agent_state SET agents_open = ? WHERE id = 1",
+                (max(0, alert["agents_to_open"]),)
+            )
+        conn.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Departures gate agent state + alerts
+# ---------------------------------------------------------------------------
+
+def get_departures_gate_agents_open() -> int:
+    init_db()
+    with _connect() as conn:
+        row = conn.execute("SELECT agents_open FROM departures_gate_agent_state WHERE id = 1").fetchone()
+    return row["agents_open"] if row else 0
+
+
+def set_departures_gate_agents_open(count: int):
+    init_db()
+    with _connect() as conn:
+        conn.execute("UPDATE departures_gate_agent_state SET agents_open = ? WHERE id = 1", (max(0, count),))
+        conn.commit()
+
+
+def save_departures_gate_alerts(alerts: list[dict]) -> list[int]:
+    init_db()
+    ids = []
+    with _connect() as conn:
+        for alert in alerts:
+            cur = conn.execute("""
+                INSERT INTO alerts
+                  (type, zone, window_start, predicted_load,
+                   agents_to_open, agents_to_add, agents_to_close,
+                   message, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                alert["type"], "departures_gate",
+                alert["window_start"], alert.get("predicted_load"),
+                alert.get("agents_to_open"), alert.get("agents_to_add"), alert.get("agents_to_close"),
+                alert["message"], alert.get("status", "OPEN"),
+                datetime.utcnow().isoformat(),
+            ))
+            ids.append(cur.lastrowid)
+        conn.commit()
+    return ids
+
+
+def get_departures_gate_alerts(status: str | None = None) -> list[dict]:
+    init_db()
+    with _connect() as conn:
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM alerts WHERE zone = 'departures_gate' AND status = ? ORDER BY created_at DESC", (status,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM alerts WHERE zone = 'departures_gate' ORDER BY created_at DESC"
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def clear_departures_gate_alerts():
+    init_db()
+    with _connect() as conn:
+        conn.execute("DELETE FROM alerts WHERE zone = 'departures_gate'")
+        conn.commit()
+
+
+def acknowledge_departures_gate_alert(alert_id: int, employee: str = "employee") -> bool:
+    init_db()
+    with _connect() as conn:
+        alert = conn.execute(
+            "SELECT id, status, agents_to_open FROM alerts WHERE id = ? AND zone = 'departures_gate'",
+            (alert_id,)
+        ).fetchone()
+        if not alert:
+            return False
+        conn.execute("""
+            UPDATE alerts
+            SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?
+            WHERE id = ?
+        """, (datetime.utcnow().isoformat(), employee, alert_id))
+        if alert["agents_to_open"] is not None:
+            conn.execute(
+                "UPDATE departures_gate_agent_state SET agents_open = ? WHERE id = 1",
                 (max(0, alert["agents_to_open"]),)
             )
         conn.commit()

@@ -78,7 +78,7 @@ st.markdown("""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=4)
+@st.cache_data(ttl=4, show_spinner=False)
 def fetch_json(url):
     try:
         r = requests.get(url, timeout=5)
@@ -87,7 +87,7 @@ def fetch_json(url):
         return None
 
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=30, show_spinner=False)
 def fetch_forecast() -> pd.DataFrame:
     try:
         r = requests.get(f"{API_BASE}/forecast", timeout=5)
@@ -101,7 +101,7 @@ def fetch_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-@st.cache_data(ttl=4)
+@st.cache_data(ttl=4, show_spinner=False)
 def fetch_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}

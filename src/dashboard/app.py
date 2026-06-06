@@ -78,6 +78,7 @@ st.markdown("""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+@st.cache_data(ttl=4)
 def fetch_json(url, **kwargs):
     try:
         r = requests.get(url, timeout=5, **kwargs)
@@ -86,6 +87,7 @@ def fetch_json(url, **kwargs):
         return None
 
 
+@st.cache_data(ttl=30)
 def fetch_forecast() -> pd.DataFrame:
     try:
         r = requests.get(f"{API_BASE}/forecast", timeout=5)
@@ -99,6 +101,7 @@ def fetch_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=4)
 def fetch_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
@@ -110,6 +113,7 @@ def fetch_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=4)
 def api_online() -> bool:
     try:
         return requests.get(f"{API_BASE}/health", timeout=2).ok
@@ -156,6 +160,7 @@ with st.sidebar:
         if st.button("✕ Unload Demo", use_container_width=True, help="Clear demo data and return to a clean state"):
             r = requests.post(f"{API_BASE}/demo/unload", timeout=30)
             if r.ok:
+                st.cache_data.clear()
                 st.session_state["current_page"] = "Train Model"
                 st.rerun()
             else:
@@ -167,6 +172,7 @@ with st.sidebar:
             if r.ok:
                 d = r.json()
                 st.success(f"Demo ready · {d['windows_predicted']} windows · {d['alerts_generated']} alerts")
+                st.cache_data.clear()
                 st.session_state["current_page"] = "Forecast"
                 st.rerun()
             else:
@@ -269,6 +275,7 @@ elif page == "Forecast":
         if r.ok:
             d = r.json()
             st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+            st.cache_data.clear()
             st.rerun()
         else:
             st.error(f"Forecast failed: {r.text}")
@@ -454,6 +461,7 @@ elif page == "Alerts":
                         requests.post(f"{API_BASE}/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.session_state.pop("desk_count_cache", None)
                         st.session_state["current_page"] = "Alerts"
+                        st.cache_data.clear()
                         st.rerun()
 
     with tab_open:
@@ -490,7 +498,7 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2840;width:100%}
 .btn-p{background:#33220a;color:#f0b84a;border:1px solid #5a3a14}.btn-p:hover{background:#42300f}
 .btn-p:disabled{background:#1e180a;color:#5a4520;border-color:#2a2010;cursor:not-allowed}
 .btn-r{background:#141c2e;color:#7a9acc;border:1px solid #1e3050}.btn-r:hover{background:#1a2438}
-.stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;padding:8px;background:#0d1118;border-radius:6px}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:8px;background:#0d1118;border-radius:6px}
 .sbox{text-align:center;padding:6px 3px;background:#111825;border-radius:5px;border:1px solid #1a2338}
 .slbl{color:#445566;font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .sval{font-size:16px;font-weight:700}
@@ -566,7 +574,6 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2840;width:100%}
       <div class="sbox"><div class="slbl">In System</div><div class="sval c-b" id="ss">0</div></div>
       <div class="sbox"><div class="slbl">In Queue</div><div class="sval c-y" id="sq">0</div></div>
       <div class="sbox"><div class="slbl">Processed</div><div class="sval c-g" id="sp">0</div></div>
-      <div class="sbox"><div class="slbl">Turned Away</div><div class="sval c-r" id="sb">0</div></div>
       <div class="sbox"><div class="slbl">Open Desks</div><div class="sval c-w" id="sd">--</div></div>
       <div class="sbox"><div class="slbl">Avg Wait</div><div class="sval c-o" id="sw">--</div></div>
     </div>
@@ -1052,15 +1059,15 @@ function tick(){
         document.getElementById('btnStart').disabled=false;
         document.getElementById('btnPause').disabled=true;
         document.getElementById('btnDay').disabled=false;
-        document.getElementById('dayProg').textContent='Day complete — '+processed+' processed, '+balked+' turned away';
-        msg('Full day complete — '+processed+' processed, '+balked+' turned away',true);
+        document.getElementById('dayProg').textContent='Day complete — '+processed+' processed';
+        msg('Full day complete — '+processed+' processed',true);
       }
     } else if(winTotal>0&&running){
       // Single window mode — stop once
       running=false;
       document.getElementById('btnStart').disabled=false;
       document.getElementById('btnPause').disabled=true;
-      msg('Window complete — '+processed+' processed, '+balked+' turned away',true);
+      msg('Window complete — '+processed+' processed',true);
     }
   }
 
@@ -1133,7 +1140,6 @@ function render(){
   document.getElementById('ss').textContent=live;
   document.getElementById('sq').textContent=qc;
   document.getElementById('sp').textContent=processed;
-  document.getElementById('sb').textContent=balked;
   if(ciCount>0){
     const avg=(totalWait/ciCount/FPS).toFixed(1);
     const el=document.getElementById('sw');

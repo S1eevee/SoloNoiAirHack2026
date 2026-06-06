@@ -113,13 +113,6 @@ def fetch_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
-@st.cache_data(ttl=4)
-def api_online() -> bool:
-    try:
-        return requests.get(f"{API_BASE}/health", timeout=2).ok
-    except Exception:
-        return False
-
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:

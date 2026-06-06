@@ -1269,6 +1269,9 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
 const API='http://localhost:8000';
 const W=800,H=490,N=20,FPS=60,QGAP=15,SPD=2.8,BALK=14;
 
+// thresholds loaded from API — fallback matches thresholds.yaml defaults
+let thresholds={baseline_desks:1,levels:[]};
+
 // sim state
 let ciTime=90, spawnRate=30, running=false, frame=0;
 let processed=0, balked=0, totalWait=0, ciCount=0, openCount=10;
@@ -1452,12 +1455,12 @@ function desksAtWindow(idx){
     .filter(a=>a.window_start<=winTime && a.desks_to_open!=null)
     .sort((a,b)=>a.window_start.localeCompare(b.window_start));
   if(relevant.length)return relevant[relevant.length-1].desks_to_open;
-  // fallback: derive from load thresholds when no alert data available
+  // fallback: derive from API thresholds (sorted high→low)
   const load=fData[idx].predicted_load||0;
-  if(load>=200)return 4;
-  if(load>=125)return 3;
-  if(load>=75)return 2;
-  return 1;
+  for(const l of thresholds.levels){
+    if(load>=l.threshold)return l.desks_to_open;
+  }
+  return thresholds.baseline_desks||1;
 }
 
 function alertAtWindow(idx){
@@ -1641,6 +1644,16 @@ function updateProgress(){
 function tick(){
   if(!running)return;
   frame++;
+
+  // Dynamic desk management — react to live queue depth every 45 frames
+  if(running && frame%45===0 && winTotal>0){
+    const openDs=desks.filter(d=>d.open);
+    const totalQ=openDs.reduce((s,d)=>s+d.q.length,0);
+    const avgQ=openDs.length?totalQ/openDs.length:0;
+    const maxDesks=desksAtWindow(selIdx>=0?selIdx:0);
+    if(avgQ>5 && openCount<Math.min(N,maxDesks+1)) setOpenDesks(openCount+1);
+    else if(avgQ<1 && winRemain===0 && openCount>1) setOpenDesks(openCount-1);
+  }
 
   // Spawn passengers
   if(frame%Math.max(2,spawnRate)===0){
@@ -1859,9 +1872,20 @@ document.getElementById('btnForecast').addEventListener('click',async()=>{
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function bootSim(){
   try{
-    const ds=await fetch(`${API}/alerts/desks`);
+    const [ds,th]=await Promise.all([
+      fetch(`${API}/alerts/desks`),
+      fetch(`${API}/thresholds`),
+    ]);
     const dd=ds.ok?await ds.json():null;
-    initDesks(dd?.desks_open??1);
+    if(th.ok){
+      const cfg=await th.json();
+      const ci=cfg.checkin||{};
+      thresholds.baseline_desks=ci.baseline_desks||1;
+      thresholds.levels=Object.values(ci)
+        .filter(v=>v&&typeof v==='object'&&v.threshold!=null)
+        .sort((a,b)=>b.threshold-a.threshold);
+    }
+    initDesks(dd?.desks_open??thresholds.baseline_desks);
   }catch(e){initDesks(1);}
   await loadForecast();
 }

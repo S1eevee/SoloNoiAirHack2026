@@ -1352,7 +1352,7 @@ class Pax{
     this.timer=0;this.wpts=[];this.wf=0;
     this.qox=(Math.random()-.5)*6;this.alpha=1;this.trail=[];
   }
-  get myCI(){return Math.max(1,Math.round(ciTime*this.type.mult/simSpeed));}
+  get myCI(){return Math.max(1,Math.round(ciTime*this.type.mult));}
   assign(ds){
     const op=ds.filter(d=>d.open);
     if(!op.length){this.state='BALK';balked++;return;}
@@ -1751,10 +1751,10 @@ function render(){
   document.getElementById('sq').textContent=qc;
   document.getElementById('sp').textContent=processed;
   if(ciCount>0){
-    const avg=(totalWait/ciCount/FPS).toFixed(1);
+    const avg=(totalWait/ciCount/FPS*simSpeed).toFixed(1);
     const el=document.getElementById('sw');
     el.textContent=avg+'s';
-    el.className='sval '+(+avg<10?'c-g':+avg<25?'c-y':'c-r');
+    el.className='sval '+(+avg<30?'c-g':+avg<90?'c-y':'c-r');
   }
 }
 

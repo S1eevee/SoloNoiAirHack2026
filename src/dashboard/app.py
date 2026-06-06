@@ -1466,18 +1466,7 @@ elif page == "Security":
 
         fig = go.Figure()
 
-        # Check-in reference line
-        if not checkin_forecast.empty:
-            fig.add_trace(go.Scatter(
-                x=checkin_forecast["window_start"],
-                y=checkin_forecast["predicted_load"],
-                name="Check-in load",
-                line=dict(color="#60a5fa", width=1.5, dash="dot"),
-                opacity=0.4,
-                hovertemplate="<b>Check-in %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
-            ))
-
-        # Security bars
+        # Security bars (drawn first so reference line renders on top)
         fig.add_trace(go.Bar(
             x=sec_forecast["window_start"],
             y=sec_forecast["predicted_load"],
@@ -1489,6 +1478,18 @@ elif page == "Security":
             ),
             hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
         ))
+
+        # Check-in reference line on top
+        if not checkin_forecast.empty:
+            fig.add_trace(go.Scatter(
+                x=checkin_forecast["window_start"],
+                y=checkin_forecast["predicted_load"],
+                name="Check-in load",
+                mode="lines+markers",
+                line=dict(color="#60a5fa", width=2.5),
+                marker=dict(size=4, color="#60a5fa"),
+                hovertemplate="<b>Check-in %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+            ))
 
         # Security threshold lines
         thresholds = fetch_json(f"{API_BASE}/thresholds")
@@ -1733,18 +1734,7 @@ elif page == "Gate":
 
         fig = go.Figure()
 
-        # Security reference line
-        if not sec_forecast.empty:
-            fig.add_trace(go.Scatter(
-                x=sec_forecast["window_start"],
-                y=sec_forecast["predicted_load"],
-                name="Security load",
-                line=dict(color="#fb923c", width=1.5, dash="dot"),
-                opacity=0.4,
-                hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
-            ))
-
-        # Gate bars
+        # Gate bars (drawn first so reference line renders on top)
         fig.add_trace(go.Bar(
             x=gate_forecast["window_start"],
             y=gate_forecast["predicted_load"],
@@ -1756,6 +1746,18 @@ elif page == "Gate":
             ),
             hovertemplate="<b>Gate %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
         ))
+
+        # Security reference line on top
+        if not sec_forecast.empty:
+            fig.add_trace(go.Scatter(
+                x=sec_forecast["window_start"],
+                y=sec_forecast["predicted_load"],
+                name="Security load",
+                mode="lines+markers",
+                line=dict(color="#fb923c", width=2.5),
+                marker=dict(size=4, color="#fb923c"),
+                hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+            ))
 
         # Gate threshold lines
         thresholds = fetch_json(f"{API_BASE}/thresholds")

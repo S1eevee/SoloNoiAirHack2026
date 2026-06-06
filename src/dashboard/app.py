@@ -993,7 +993,7 @@ elif page == "Alerts":
         except (TypeError, ValueError):
             return 0
 
-    def render_all_alerts(df: pd.DataFrame, show_ack: bool = False):
+    def render_all_alerts(df: pd.DataFrame, show_ack: bool = False, tab_key: str = ""):
         if df.empty:
             st.markdown("<div style='color:#64748b; padding:20px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts in this category</div>", unsafe_allow_html=True)
             return
@@ -1041,10 +1041,10 @@ elif page == "Alerts":
                     new_note = st.text_input(
                         "Note", value=note,
                         placeholder="e.g. Delegated to Maria, Gate B…",
-                        key=f"note_input_{source}_{row['id']}",
+                        key=f"note_input_{tab_key}_{source}_{row['id']}",
                         label_visibility="collapsed",
                     )
-                    if st.button("Save note", key=f"note_save_{source}_{row['id']}"):
+                    if st.button("Save note", key=f"note_save_{tab_key}_{source}_{row['id']}"):
                         requests.patch(f"{API_BASE}/alerts/{int(row['id'])}/note", json={"note": new_note})
                         st.cache_data.clear()
                         st.rerun()
@@ -1052,7 +1052,7 @@ elif page == "Alerts":
                 if show_ack and status == "OPEN":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
-                    if st.button("Confirm", key=f"ack_{source}_{row['id']}"):
+                    if st.button("Confirm", key=f"ack_{tab_key}_{source}_{row['id']}"):
                         requests.post(ack_url, json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
@@ -1069,12 +1069,12 @@ elif page == "Alerts":
     ])
     with tab_open:
         filtered = all_combined[all_combined["status"] == "OPEN"].reset_index(drop=True) if not all_combined.empty else all_combined
-        render_all_alerts(filtered, show_ack=True)
+        render_all_alerts(filtered, show_ack=True, tab_key="open")
     with tab_ack:
         filtered = all_combined[all_combined["status"] == "ACKNOWLEDGED"].reset_index(drop=True) if not all_combined.empty else all_combined
-        render_all_alerts(filtered)
+        render_all_alerts(filtered, tab_key="ack")
     with tab_all:
-        render_all_alerts(all_combined)
+        render_all_alerts(all_combined, tab_key="all")
 
 
 # ── Simulation ─────────────────────────────────────────────────────────────────

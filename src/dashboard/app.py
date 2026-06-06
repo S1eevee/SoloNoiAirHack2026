@@ -1096,27 +1096,27 @@ elif page == "Simulation":
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter','Segoe UI',Arial,sans-serif}
-body{background:#0b0d10;color:#94a3b8;padding:10px;overflow-x:hidden}
-.wrap{display:flex;gap:10px;align-items:flex-start}
-.sim-panel{flex:1;min-width:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26}
-canvas#c{display:block;border-radius:4px;border:1px solid #161c26}
-.btns{display:flex;justify-content:center;gap:6px;margin:8px 0 6px}
-.btn{padding:6px 16px;font-size:11px;border:none;border-radius:4px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
+body{background:#080b10;color:#94a3b8;padding:10px 10px 6px;overflow-x:auto}
+.wrap{display:flex;gap:0;align-items:stretch;width:max-content;background:#080b10;border-radius:10px;border:1px solid #1e2535;overflow:hidden}
+.sim-panel{flex:none;background:#0f1318;padding:12px 12px 10px;border-right:1px solid #1e2535}
+canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
+.btns{display:flex;justify-content:center;gap:8px;margin:10px 0 8px}
+.btn{padding:7px 20px;font-size:11px;border:none;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
 .btn:active{transform:scale(.97)}
 .btn-s{background:#4ade80;color:#020d06;border:none}.btn-s:hover{background:#5bf58f}
 .btn-s:disabled{background:#162a1c;color:#64748b;cursor:not-allowed}
 .btn-p{background:#fb923c18;color:#fb923c;border:1px solid #fb923c30}.btn-p:hover{background:#fb923c30}
 .btn-p:disabled{background:#0f0e09;color:#3a2a15;border-color:#1c160a;cursor:not-allowed}
 .btn-r{background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30}.btn-r:hover{background:#60a5fa25}
-.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#161c26;border-radius:4px;overflow:hidden;margin-top:6px}
-.sbox{text-align:center;padding:10px 3px;background:#0f1318}
+.stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:#1e2535;border-radius:6px;overflow:hidden;margin-top:8px}
+.sbox{text-align:center;padding:10px 4px;background:#0f1318}
 .slbl{color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;font-weight:700}
 .sval{font-size:18px;font-weight:800}
 .c-b{color:#60a5fa}.c-y{color:#fb923c}.c-g{color:#4ade80}.c-r{color:#f87171}.c-w{color:#e2e8f0}.c-o{color:#fb923c}
 .progress-wrap{height:4px;background:#0b0d10;border-radius:2px;margin-top:8px;overflow:hidden}
 .progress-bar{height:100%;background:linear-gradient(90deg,#4ade80,#fb923c);border-radius:2px;transition:width .3s}
 .prog-lbl{font-size:10px;color:#94a3b8;text-align:center;margin-top:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.right{width:260px;flex-shrink:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26;display:flex;flex-direction:column;gap:8px;max-height:820px;overflow-y:auto}
+.right{width:290px;flex-shrink:0;background:#0c1020;padding:14px 12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
 .sec-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
 .api-row{display:flex;gap:4px}
 .abtn{flex:1;padding:6px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
@@ -1185,6 +1185,7 @@ canvas#c{display:block;border-radius:4px;border:1px solid #161c26}
       <div class="sbox"><div class="slbl">In Queue</div><div class="sval c-y" id="sq">0</div></div>
       <div class="sbox"><div class="slbl">Processed</div><div class="sval c-g" id="sp">0</div></div>
       <div class="sbox"><div class="slbl">Open Desks</div><div class="sval c-w" id="sd">--</div></div>
+      <div class="sbox"><div class="slbl">Turned Away</div><div class="sval c-r" id="sb">0</div></div>
       <div class="sbox"><div class="slbl">Avg Wait</div><div class="sval c-o" id="sw">--</div></div>
     </div>
     <div class="progress-wrap"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
@@ -1756,6 +1757,7 @@ function render(){
   document.getElementById('ss').textContent=live;
   document.getElementById('sq').textContent=qc;
   document.getElementById('sp').textContent=processed;
+  document.getElementById('sb').textContent=balked;
   if(ciCount>0){
     const avg=(totalWait/ciCount/FPS*simSpeed).toFixed(1);
     const el=document.getElementById('sw');
@@ -1869,7 +1871,7 @@ loop();
 </body>
 </html>"""
 
-    components.html(_SIM_HTML, height=860, scrolling=False)
+    components.html(_SIM_HTML, height=700, scrolling=False)
 
 
 # ── Security ───────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terminal Check-In Flow Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -13,38 +14,163 @@
         body {
             font-family: Arial, sans-serif;
             background: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             padding: 20px;
         }
-        .container {
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+        }
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .simulation-panel {
+            flex: 1;
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
+        .forecast-panel {
+            width: 350px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .forecast-panel h3 {
+            margin: 0 0 10px 0;
             color: #333;
+            font-size: 16px;
+        }
+        .forecast-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .forecast-controls button {
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .forecast-controls button:hover {
+            background: #218838;
+        }
+        .forecast-controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        .forecast-stats {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .stat-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .stat-label {
+            color: #666;
+            font-weight: bold;
+        }
+        .stat-value {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .time-window-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .time-window-selector label {
+            font-size: 13px;
+            color: #666;
+            font-weight: bold;
+        }
+        .time-window-selector select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .apply-btn {
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .apply-btn:hover {
+            background: #0056b3;
+        }
+        .apply-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status-message {
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
         }
         canvas {
             display: block;
-            border: 2px solid #333;
+            border: 2px solid #ddd;
             background: white;
             margin-bottom: 20px;
+            border-radius: 4px;
         }
         .controls {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 10px;
             flex-wrap: wrap;
+            margin-bottom: 20px;
         }
         button {
             padding: 10px 20px;
-            font-size: 16px;
+            font-size: 14px;
             border: none;
             border-radius: 4px;
             background: #007bff;
@@ -60,66 +186,130 @@
             cursor: not-allowed;
         }
         .stats {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
             padding: 15px;
             background: #f9f9f9;
             border-radius: 4px;
         }
         .stat {
             text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
         }
         .stat-label {
             color: #666;
-            font-size: 14px;
+            font-size: 13px;
+            margin-bottom: 5px;
         }
         .stat-value {
             color: #333;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
+        }
+        .recommendation-box {
+            background: #fffbea;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .recommendation-box strong {
+            color: #ff6b6b;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Terminal Check-In Flow Simulation</h1>
-        <canvas id="simCanvas" width="1000" height="700"></canvas>
-        
-        <div class="controls">
-            <button id="startBtn">Start</button>
-            <button id="pauseBtn" disabled>Pause</button>
-            <button id="resetBtn">Reset</button>
+    <div class="header">
+        <h1>✈️ Terminal Check-In Flow Simulation</h1>
+    </div>
+
+    <div class="main-container">
+        <!-- Left: Simulation -->
+        <div class="simulation-panel">
+            <canvas id="simCanvas" width="900" height="600"></canvas>
+            
+            <div class="controls">
+                <button id="startBtn">Start</button>
+                <button id="pauseBtn" disabled>Pause</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">In System</div>
+                    <div class="stat-value" id="stat-system">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">In Queue</div>
+                    <div class="stat-value" id="stat-queue">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Processed</div>
+                    <div class="stat-value" id="stat-processed">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Open Desks</div>
+                    <div class="stat-value" id="stat-open-desks">10</div>
+                </div>
+            </div>
         </div>
-        
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-label">Passengers in System</div>
-                <div class="stat-value" id="stat-system">0</div>
+
+        <!-- Right: Forecast & Predictions -->
+        <div class="forecast-panel">
+            <h3>📊 Passenger Forecast</h3>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div class="forecast-controls">
+                <button id="trainBtn">Train Model</button>
+                <button id="forecastBtn">Generate Forecast</button>
             </div>
-            <div class="stat">
-                <div class="stat-label">Passengers in Queue</div>
-                <div class="stat-value" id="stat-queue">0</div>
+
+            <div class="chart-container">
+                <canvas id="forecastChart"></canvas>
             </div>
-            <div class="stat">
-                <div class="stat-label">Processed</div>
-                <div class="stat-value" id="stat-processed">0</div>
+
+            <div class="forecast-stats" id="forecastStats" style="display:none;">
+                <div class="stat-row">
+                    <span class="stat-label">Peak Load:</span>
+                    <span class="stat-value" id="stat-peak">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Load:</span>
+                    <span class="stat-value" id="stat-avg">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Recommended Desks:</span>
+                    <span class="stat-value" id="stat-recommended-desks">--</span>
+                </div>
             </div>
-            <div class="stat">
-                <div class="stat-label">FPS</div>
-                <div class="stat-value" id="stat-fps">60</div>
+
+            <div class="time-window-selector" id="timeWindowSelector" style="display:none;">
+                <label for="timeWindowSelect">Select Time Window:</label>
+                <select id="timeWindowSelect"></select>
+                <button class="apply-btn" id="applyForecastBtn">Apply Forecast Settings</button>
+            </div>
+
+            <div class="recommendation-box" id="recommendationBox" style="display:none;">
+                Open <strong id="recommendedDesks">--</strong> desks to handle <strong id="forecastedLoad">--</strong> passengers 
+                in the selected window
             </div>
         </div>
     </div>
 
     <script>
+        const API_BASE = 'http://localhost:8000';
+        
         // Configuration
-        const WIDTH = 1000;
-        const HEIGHT = 700;
+        const WIDTH = 900;
+        const HEIGHT = 600;
         const FPS = 60;
         const NUM_DESKS = 20;
-        const OPEN_DESKS = 10;
-        const SPAWN_RATE = 30;
+        const BASE_SPAWN_RATE = 30;
         const CHECK_IN_TIME = 90;
         const PASSENGER_SPEED = 2.5;
         const PASSENGER_RADIUS = 5;
@@ -142,18 +332,24 @@
         let running = false;
         let frameCount = 0;
         let processedCount = 0;
+        let currentOpenDesks = 10;
+        let currentSpawnRate = BASE_SPAWN_RATE;
         const passengers = [];
         const desks = [];
+        
+        // Forecast data
+        let forecastData = [];
+        let forecastChart = null;
 
         // Desk class
         class Desk {
-            constructor(index, x, y) {
+            constructor(index, x, y, isOpen) {
                 this.index = index;
                 this.x = x;
                 this.y = y;
                 this.width = 30;
                 this.height = 20;
-                this.isOpen = index < OPEN_DESKS;
+                this.isOpen = isOpen;
                 this.queue = [];
             }
 
@@ -175,13 +371,14 @@
                 this.x = startX;
                 this.y = startY;
                 this.targetDesk = null;
-                this.state = 'APPROACHING'; // APPROACHING, CHECKING_IN, DETOURING, EXITING
+                this.state = 'APPROACHING';
                 this.checkInTimer = 0;
                 this.waypoints = [];
             }
 
             assignDesk(desks) {
                 const openDesks = desks.filter(d => d.isOpen);
+                if (openDesks.length === 0) return;
                 this.targetDesk = openDesks.reduce((min, d) =>
                     d.queue.length < min.queue.length ? d : min
                 );
@@ -210,7 +407,7 @@
                         this.state = 'DETOURING';
                         this.waypoints = [
                             [this.targetDesk.x + 25, this.targetDesk.y],
-                            [this.targetDesk.x + 25, 100]
+                            [this.targetDesk.x + 25, 80]
                         ];
                     }
                 } else if (this.state === 'DETOURING') {
@@ -254,14 +451,17 @@
             }
         }
 
-        // Initialize desks
-        function initDesks() {
+        // Initialize desks with dynamic open count
+        function initDesks(openCount = 10) {
             desks.length = 0;
             const startX = 45;
             const spacing = 48;
             for (let i = 0; i < NUM_DESKS; i++) {
-                desks.push(new Desk(i, startX + i * spacing, HEIGHT / 2));
+                const isOpen = i < openCount;
+                desks.push(new Desk(i, startX + i * spacing, HEIGHT / 2, isOpen));
             }
+            currentOpenDesks = openCount;
+            document.getElementById('stat-open-desks').textContent = openCount;
         }
 
         // Main update loop
@@ -270,14 +470,12 @@
 
             frameCount++;
             
-            // Spawn passengers
-            if (frameCount % SPAWN_RATE === 0) {
+            if (frameCount % Math.max(5, currentSpawnRate) === 0) {
                 const p = new Passenger(WIDTH / 2, HEIGHT - 20);
                 p.assignDesk(desks);
                 passengers.push(p);
             }
 
-            // Update passengers
             for (let i = passengers.length - 1; i >= 0; i--) {
                 passengers[i].update();
                 if (passengers[i].y < 0) {
@@ -288,57 +486,199 @@
 
         // Rendering function
         function draw() {
-            // Clear canvas
             ctx.fillStyle = WHITE;
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-            // Draw escalator area
             ctx.fillStyle = GRAY;
             ctx.fillRect(0, 0, WIDTH, 80);
             
             ctx.fillStyle = BLACK;
-            ctx.font = '20px Arial';
+            ctx.font = '16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('ESCALATOR TO SECURITY', WIDTH / 2, 50);
+            ctx.fillText('ESCALATOR TO SECURITY', WIDTH / 2, 45);
 
-            // Draw entrance area
             ctx.fillStyle = DARK_GRAY;
             ctx.fillRect(WIDTH / 2 - 60, HEIGHT - 30, 120, 30);
 
-            // Draw desks
             for (const desk of desks) {
                 desk.draw(ctx);
             }
 
-            // Draw passengers
             for (const passenger of passengers) {
                 passenger.draw(ctx);
             }
 
-            // Update statistics
             const queueCount = desks.reduce((sum, d) => sum + d.queue.length, 0);
             document.getElementById('stat-system').textContent = passengers.length;
             document.getElementById('stat-queue').textContent = queueCount;
             document.getElementById('stat-processed').textContent = processedCount;
         }
 
-        // Animation loop
         let lastTime = Date.now();
-        let fps = 60;
 
         function animate() {
             update();
             draw();
-
-            // Calculate FPS
             const now = Date.now();
-            const delta = now - lastTime;
-            fps = Math.round(1000 / delta);
-            document.getElementById('stat-fps').textContent = fps;
             lastTime = now;
-
             requestAnimationFrame(animate);
         }
+
+        // API Functions
+        function showStatus(message, type = 'error') {
+            const el = document.getElementById('statusMessage');
+            el.textContent = message;
+            el.className = `status-message ${type}`;
+            setTimeout(() => {
+                el.className = 'status-message';
+            }, 3000);
+        }
+
+        document.getElementById('trainBtn').addEventListener('click', async () => {
+            document.getElementById('trainBtn').disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/forecast/train`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Train failed');
+                showStatus(`✅ Model trained on ${data.training_flights} flights`, 'success');
+            } catch (error) {
+                showStatus(`❌ Training failed: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('trainBtn').disabled = false;
+            }
+        });
+
+        document.getElementById('forecastBtn').addEventListener('click', async () => {
+            document.getElementById('forecastBtn').disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/forecast/run`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Forecast failed');
+                
+                forecastData = data.predictions || [];
+                updateForecastChart();
+                updateForecastStats();
+                populateTimeWindowSelector();
+                
+                showStatus(`✅ Forecast generated for ${data.windows_predicted} time windows`, 'success');
+            } catch (error) {
+                showStatus(`❌ Forecast failed: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('forecastBtn').disabled = false;
+            }
+        });
+
+        document.getElementById('applyForecastBtn').addEventListener('click', () => {
+            const selectedIndex = parseInt(document.getElementById('timeWindowSelect').value);
+            if (selectedIndex >= 0 && forecastData[selectedIndex]) {
+                const window = forecastData[selectedIndex];
+                const load = window.predicted_load || 0;
+                
+                // Calculate recommended desks (1 desk per 50 passengers, min 5, max 20)
+                const recommendedDesks = Math.max(5, Math.min(20, Math.ceil(load / 50)));
+                
+                // Calculate spawn rate based on load (scale from 5-30 frames)
+                const spawnRate = Math.max(5, Math.floor(30 - (load / 200) * 25));
+                
+                currentSpawnRate = spawnRate;
+                initDesks(recommendedDesks);
+                
+                showStatus(
+                    `✅ Applied: ${recommendedDesks} desks, spawn rate ${spawnRate}, for ${load} passengers`,
+                    'success'
+                );
+            }
+        });
+
+        function updateForecastChart() {
+            if (!forecastData.length) return;
+            
+            const labels = forecastData.map(w => {
+                const time = w.scheduled_time || w.window || '';
+                return time.split(' ')[1]?.substring(0, 5) || '';
+            });
+            
+            const loads = forecastData.map(w => w.predicted_load || 0);
+            
+            const chartCanvas = document.getElementById('forecastChart');
+            
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+            
+            forecastChart = new Chart(chartCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Predicted Passenger Load',
+                        data: loads,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: Math.max(...loads) * 1.2
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateForecastStats() {
+            if (!forecastData.length) return;
+            
+            const loads = forecastData.map(w => w.predicted_load || 0);
+            const peak = Math.max(...loads);
+            const avg = Math.round(loads.reduce((a, b) => a + b, 0) / loads.length);
+            const recommended = Math.max(5, Math.min(20, Math.ceil(peak / 50)));
+            
+            document.getElementById('stat-peak').textContent = peak;
+            document.getElementById('stat-avg').textContent = avg;
+            document.getElementById('stat-recommended-desks').textContent = recommended;
+            document.getElementById('forecastStats').style.display = 'block';
+        }
+
+        function populateTimeWindowSelector() {
+            const select = document.getElementById('timeWindowSelect');
+            select.innerHTML = '';
+            
+            forecastData.forEach((window, index) => {
+                const option = document.createElement('option');
+                const time = window.scheduled_time || window.window || '';
+                const load = window.predicted_load || 0;
+                option.value = index;
+                option.textContent = `${time} (${load} pax)`;
+                select.appendChild(option);
+            });
+            
+            document.getElementById('timeWindowSelector').style.display = 'block';
+            document.getElementById('recommendationBox').style.display = 'block';
+            updateRecommendationBox();
+        }
+
+        function updateRecommendationBox() {
+            const selectedIndex = parseInt(document.getElementById('timeWindowSelect').value);
+            if (selectedIndex >= 0 && forecastData[selectedIndex]) {
+                const load = forecastData[selectedIndex].predicted_load || 0;
+                const desks = Math.max(5, Math.min(20, Math.ceil(load / 50)));
+                document.getElementById('forecastedLoad').textContent = load;
+                document.getElementById('recommendedDesks').textContent = desks;
+            }
+        }
+
+        document.getElementById('timeWindowSelect').addEventListener('change', updateRecommendationBox);
 
         // UI Controls
         document.getElementById('startBtn').addEventListener('click', () => {
@@ -358,14 +698,14 @@
             frameCount = 0;
             processedCount = 0;
             passengers.length = 0;
-            initDesks();
+            initDesks(currentOpenDesks);
             document.getElementById('startBtn').disabled = false;
             document.getElementById('pauseBtn').disabled = true;
             draw();
         });
 
-        // Initialize and start
-        initDesks();
+        // Initialize
+        initDesks(10);
         draw();
         animate();
     </script>

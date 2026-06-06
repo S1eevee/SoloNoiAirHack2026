@@ -850,6 +850,14 @@ elif page == "Alerts":
 
     SOURCE_TAG = {"Check-in": "tag-checkin", "Security": "tag-security", "Gate": "tag-gate"}
 
+    def _int(val):
+        """Safely convert a possibly-NaN pandas value to int."""
+        try:
+            v = int(val)
+            return v if v == v else 0  # NaN != NaN
+        except (TypeError, ValueError):
+            return 0
+
     def render_all_alerts(df: pd.DataFrame, show_ack: bool = False):
         if df.empty:
             st.markdown("<div style='color:#64748b; padding:20px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts in this category</div>", unsafe_allow_html=True)
@@ -863,21 +871,21 @@ elif page == "Alerts":
             win        = str(row.get("window_start", ""))[:16]
             src_tag    = SOURCE_TAG.get(source, "tag-blue")
 
-            # Action tag + card class
+            units = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}
+            unit  = units.get(source, "unit(s)")
+
             if status == "ACKNOWLEDGED":
                 card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
             elif alert_type in ("checkin_close", "security_close", "gate_close"):
                 card_cls = "alert-close"
                 tag_cls  = "desk-close"
-                n = row.get("desks_to_close") or row.get("lanes_to_close") or row.get("agents_to_close") or 0
-                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}.get(source, "unit(s)")
-                tag_txt = f"Close {n} {unit}"
+                n = _int(row.get("desks_to_close")) or _int(row.get("lanes_to_close")) or _int(row.get("agents_to_close"))
+                tag_txt  = f"Close {n} {unit}"
             else:
                 card_cls = "alert-open"
                 tag_cls  = "desk-open"
-                n = row.get("desks_to_add") or row.get("lanes_to_add") or row.get("agents_to_add") or 0
-                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}.get(source, "unit(s)")
-                tag_txt = f"Open {n} more {unit}"
+                n = _int(row.get("desks_to_add")) or _int(row.get("lanes_to_add")) or _int(row.get("agents_to_add"))
+                tag_txt  = f"Open {n} more {unit}"
 
             col_card, col_btn = st.columns([5, 1])
             with col_card:
@@ -897,12 +905,22 @@ elif page == "Alerts":
                         st.cache_data.clear()
                         st.rerun()
 
+    n_open = int((all_combined["status"] == "OPEN").sum())       if not all_combined.empty else 0
+    n_ack  = int((all_combined["status"] == "ACKNOWLEDGED").sum()) if not all_combined.empty else 0
+    n_all  = len(all_combined)
+
     st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
-    tab_open, tab_ack, tab_all = st.tabs(["Open", "Acknowledged", "All"])
+    tab_open, tab_ack, tab_all = st.tabs([
+        f"Open ({n_open})",
+        f"Acknowledged ({n_ack})",
+        f"All ({n_all})",
+    ])
     with tab_open:
-        render_all_alerts(all_combined[all_combined["status"] == "OPEN"].reset_index(drop=True) if not all_combined.empty else all_combined, show_ack=True)
+        filtered = all_combined[all_combined["status"] == "OPEN"].reset_index(drop=True) if not all_combined.empty else all_combined
+        render_all_alerts(filtered, show_ack=True)
     with tab_ack:
-        render_all_alerts(all_combined[all_combined["status"] == "ACKNOWLEDGED"].reset_index(drop=True) if not all_combined.empty else all_combined)
+        filtered = all_combined[all_combined["status"] == "ACKNOWLEDGED"].reset_index(drop=True) if not all_combined.empty else all_combined
+        render_all_alerts(filtered)
     with tab_all:
         render_all_alerts(all_combined)
 

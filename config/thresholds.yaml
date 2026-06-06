@@ -32,15 +32,15 @@ checkin:
   level_1:
     desks_to_open: 2
     message: Open 2 check-in desk(s)
-    threshold: 200
+    threshold: 70
   level_2:
     desks_to_open: 3
     message: Open 3 check-in desks
-    threshold: 325
+    threshold: 120
   level_3:
     desks_to_open: 4
     message: "Open 4 check-in desks \u2014 HIGH LOAD"
-    threshold: 400
+    threshold: 165
 gate:
   baseline_agents: 1
   flow_factor: 0.98

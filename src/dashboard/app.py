@@ -1650,8 +1650,8 @@ function tick(){
     const openDs=desks.filter(d=>d.open);
     const totalQ=openDs.reduce((s,d)=>s+d.q.length,0);
     const avgQ=openDs.length?totalQ/openDs.length:0;
-    const maxDesks=desksAtWindow(selIdx>=0?selIdx:0);
-    if(avgQ>5 && openCount<Math.min(N,maxDesks+1)) setOpenDesks(openCount+1);
+    const maxDesks=Math.max(desksAtWindow(selIdx>=0?selIdx:0),openCount);
+    if(avgQ>5 && openCount<Math.min(N,maxDesks+2)) setOpenDesks(openCount+1);
     else if(avgQ<1 && winRemain===0 && openCount>1) setOpenDesks(openCount-1);
   }
 

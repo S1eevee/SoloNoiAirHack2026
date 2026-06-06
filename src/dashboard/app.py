@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 
 API_BASE = "http://localhost:8000"
@@ -36,33 +35,18 @@ with st.sidebar:
             st.info("No key — AI Insights will use auto-summary")
 
     st.divider()
+    page = st.radio("View", ["Train Model", "Forecast", "Alerts", "AI Insights", "Settings"])
 
-    uploaded = st.file_uploader("Upload flight schedule (CSV)", type=["csv"])
-    if uploaded:
-        resp = requests.post(
-            f"{API_BASE}/data/upload",
-            files={"file": (uploaded.name, uploaded.getvalue(), "text/csv")},
-        )
-        if resp.ok:
-            d = resp.json()
-            st.success(f"Loaded {d['flights_loaded']} flights")
-        else:
-            st.error(f"Upload failed: {resp.text}")
 
-    if st.button("Run Forecast & Generate Alerts", type="primary", use_container_width=True):
-        with st.spinner("Training XGBoost + generating alerts…"):
-            r = requests.post(f"{API_BASE}/forecast/run")
-        if r.ok:
-            d = r.json()
-            st.success(f"Forecast done: {d['windows_predicted']} windows, {d['alerts_generated']} alerts")
-            st.rerun()
-        else:
-            st.error(f"Forecast failed: {r.text}")
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    st.divider()
-    page = st.radio("View", ["Dashboard", "Alerts", "AI Insights", "Settings"])
+def fetch_json(url, **kwargs):
+    try:
+        r = requests.get(url, timeout=5, **kwargs)
+        return r.json() if r.ok else None
+    except Exception:
+        return None
 
-# ── Fetch data helpers ────────────────────────────────────────────────────────
 
 def fetch_forecast() -> pd.DataFrame:
     try:
@@ -88,21 +72,104 @@ def fetch_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
-# ── Pages ─────────────────────────────────────────────────────────────────────
+# ── Train Model ───────────────────────────────────────────────────────────────
 
-if page == "Dashboard":
-    st.header("Passenger Load Forecast")
-    forecast = fetch_forecast()
+if page == "Train Model":
+    st.header("Train Model on Historical Data")
+    st.caption("Upload past flight schedules so the model learns passenger load patterns.")
 
-    if forecast.empty:
-        st.info("No forecast available yet. Upload a schedule and click **Run Forecast**.")
+    # training data status
+    info = fetch_json(f"{API_BASE}/data/training/info")
+    if info and info.get("loaded"):
+        st.success(f"Training dataset: **{info['flights']:,} flights** | {info['date_from'][:10]} → {info['date_to'][:10]}")
+        if st.button("Clear training data", type="secondary"):
+            requests.post(f"{API_BASE}/data/upload/training/clear")
+            st.rerun()
     else:
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Windows", len(forecast))
-        col2.metric("Peak Load", int(forecast["predicted_load"].max()))
-        col3.metric("Total Pax", int(forecast["predicted_load"].sum()))
+        st.warning("No training data loaded yet.")
 
-        # Load chart
+    st.divider()
+
+    uploaded = st.file_uploader(
+        "Upload historical flight CSV (can upload multiple files — they stack)",
+        type=["csv"],
+        key="training_upload",
+    )
+    if uploaded:
+        with st.spinner("Loading…"):
+            resp = requests.post(
+                f"{API_BASE}/data/upload/training",
+                files={"file": (uploaded.name, uploaded.getvalue(), "text/csv")},
+            )
+        if resp.ok:
+            d = resp.json()
+            st.success(f"Loaded — dataset now has **{d['flights_loaded']:,} flights** from {d['date_range']['from'][:10]} to {d['date_range']['to'][:10]}")
+            st.rerun()
+        else:
+            st.error(f"Upload failed: {resp.text}")
+
+    st.divider()
+
+    if st.button("Train Model", type="primary", use_container_width=True):
+        with st.spinner("Training XGBoost…"):
+            r = requests.post(f"{API_BASE}/forecast/train", timeout=120)
+        if r.ok:
+            d = r.json()
+            st.success("Model trained successfully!")
+            m = d.get("metrics", {})
+            c1, c2, c3 = st.columns(3)
+            c1.metric("MAE", f"{m.get('MAE', '—')} pax")
+            c2.metric("RMSE", f"{m.get('RMSE', '—')} pax")
+            c3.metric("MAPE", f"{m.get('MAPE_%', '—')}%")
+        else:
+            st.error(f"Training failed: {r.text}")
+
+
+# ── Forecast ──────────────────────────────────────────────────────────────────
+
+elif page == "Forecast":
+    st.header("Forecast Upcoming Schedule")
+    st.caption("Upload tomorrow's flight schedule and predict passenger load per 30-min window.")
+
+    info = fetch_json(f"{API_BASE}/data/schedule/info")
+    if info and info.get("loaded"):
+        st.success(f"Schedule loaded: **{info['flights']:,} flights** | {info['date_from'][:10]} → {info['date_to'][:10]}")
+    else:
+        st.warning("No schedule uploaded yet.")
+
+    uploaded = st.file_uploader("Upload upcoming flight schedule CSV", type=["csv"], key="schedule_upload")
+    if uploaded:
+        with st.spinner("Loading…"):
+            resp = requests.post(
+                f"{API_BASE}/data/upload/schedule",
+                files={"file": (uploaded.name, uploaded.getvalue(), "text/csv")},
+            )
+        if resp.ok:
+            d = resp.json()
+            st.success(f"Schedule loaded: **{d['flights_loaded']} flights**")
+            st.rerun()
+        else:
+            st.error(f"Upload failed: {resp.text}")
+
+    if st.button("Run Forecast & Generate Alerts", type="primary", use_container_width=True):
+        with st.spinner("Predicting…"):
+            r = requests.post(f"{API_BASE}/forecast/run", timeout=120)
+        if r.ok:
+            d = r.json()
+            st.success(f"Done — {d['windows_predicted']} windows predicted, {d['alerts_generated']} alerts generated")
+            st.rerun()
+        else:
+            st.error(f"Forecast failed: {r.text}")
+
+    st.divider()
+
+    forecast = fetch_forecast()
+    if not forecast.empty:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Windows", len(forecast))
+        c2.metric("Peak Load", int(forecast["predicted_load"].max()))
+        c3.metric("Total Pax", int(forecast["predicted_load"].sum()))
+
         fig = px.bar(
             forecast,
             x="window_start",
@@ -115,30 +182,16 @@ if page == "Dashboard":
         fig.update_layout(coloraxis_showscale=False)
         st.plotly_chart(fig, use_container_width=True)
 
-        # Alert overlay thresholds
-        try:
-            r = requests.get(f"{API_BASE}/thresholds", timeout=3)
-            if r.ok:
-                thresholds = r.json()["checkin"]
-                for lvl in thresholds.values():
-                    fig.add_hline(
-                        y=lvl["threshold"],
-                        line_dash="dot",
-                        annotation_text=f"Threshold {lvl['threshold']}",
-                        annotation_position="top right",
-                    )
-        except Exception:
-            pass
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("Window Detail")
         st.dataframe(
             forecast.rename(columns={"window_start": "Window", "predicted_load": "Predicted Pax"}),
             use_container_width=True,
             hide_index=True,
         )
+    else:
+        st.info("No forecast yet — upload a schedule and click Run Forecast.")
 
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
 
 elif page == "Alerts":
     st.header("Check-in Desk Alerts")
@@ -156,8 +209,8 @@ elif page == "Alerts":
                 c1.markdown(f"{status_color} **{row['message']}**")
                 c1.caption(f"Window: {row['window_start']} | Desks needed: {row.get('desks_to_open', '?')} | Pax: {row.get('predicted_load', '?')}")
                 if show_ack and row["status"] == "OPEN":
+                    emp = st.session_state.get("employee_name", "employee")
                     if c2.button("Acknowledge", key=f"ack_{row['id']}"):
-                        emp = st.session_state.get("employee_name", "employee")
                         requests.post(
                             f"{API_BASE}/alerts/{row['id']}/acknowledge",
                             json={"employee": emp},
@@ -165,9 +218,8 @@ elif page == "Alerts":
                         st.rerun()
 
     with tab_open:
-        emp = st.text_input("Your name (for audit trail)", value="Employee", key="employee_name")
-        open_alerts = fetch_alerts("OPEN")
-        render_alerts(open_alerts, show_ack=True)
+        st.session_state["employee_name"] = st.text_input("Your name (for audit trail)", value="Employee")
+        render_alerts(fetch_alerts("OPEN"), show_ack=True)
 
     with tab_ack:
         render_alerts(fetch_alerts("ACKNOWLEDGED"))
@@ -176,25 +228,24 @@ elif page == "Alerts":
         render_alerts(fetch_alerts())
 
 
+# ── AI Insights ───────────────────────────────────────────────────────────────
+
 elif page == "AI Insights":
     st.header("AI Operational Insights")
     st.caption("Powered by Claude (claude-opus-4-8) with adaptive thinking")
 
     question = st.text_area(
         "Ask a question (leave blank for auto-summary)",
-        placeholder="e.g. Which hour needs the most check-in desks? Should we call in extra staff?",
+        placeholder="e.g. Which hour needs the most check-in desks?",
         height=80,
     )
 
     if st.button("Get Insights", type="primary"):
-        with st.spinner("Claude is thinking…"):
+        with st.spinner("Thinking…"):
             try:
                 r = requests.post(
                     f"{API_BASE}/insights",
-                    json={
-                        "question": question or None,
-                        "api_key": st.session_state.get("api_key") or None,
-                    },
+                    json={"question": question or None, "api_key": st.session_state.get("api_key") or None},
                     timeout=120,
                 )
                 if r.ok:
@@ -205,9 +256,10 @@ elif page == "AI Insights":
                 st.error("Cannot reach API. Make sure the FastAPI server is running.")
 
 
+# ── Settings ──────────────────────────────────────────────────────────────────
+
 elif page == "Settings":
     st.header("Alert Thresholds")
-    st.caption("Configure passenger load thresholds for check-in desk alerts")
 
     try:
         r = requests.get(f"{API_BASE}/thresholds", timeout=5)

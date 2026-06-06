@@ -46,7 +46,13 @@ def train(feature_matrix: pd.DataFrame, save: bool = True) -> XGBRegressor:
     return model
 
 
+_model_cache: dict = {"model": None, "mtime": None}
+
 def load_model() -> XGBRegressor:
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"No trained model at {MODEL_PATH}. Run pipeline.py train first.")
-    return joblib.load(MODEL_PATH)
+    mtime = MODEL_PATH.stat().st_mtime
+    if _model_cache["model"] is None or _model_cache["mtime"] != mtime:
+        _model_cache["model"] = joblib.load(MODEL_PATH)
+        _model_cache["mtime"] = mtime
+    return _model_cache["model"]

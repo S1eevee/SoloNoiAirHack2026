@@ -208,6 +208,56 @@ def fetch_gate_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
+def fetch_arrivals_alerts(status=None) -> pd.DataFrame:
+    try:
+        params = {"status": status} if status else {}
+        r = requests.get(f"{API_BASE}/arrivals/alerts", params=params, timeout=5)
+        if r.ok:
+            return pd.DataFrame(r.json())
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def fetch_arrivals_forecast() -> pd.DataFrame:
+    try:
+        r = requests.get(f"{API_BASE}/arrivals/forecast", timeout=5)
+        if r.ok:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["window_start"] = pd.to_datetime(df["window_start"])
+            return df
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def fetch_departures_alerts(status=None) -> pd.DataFrame:
+    try:
+        params = {"status": status} if status else {}
+        r = requests.get(f"{API_BASE}/departures/alerts", params=params, timeout=5)
+        if r.ok:
+            return pd.DataFrame(r.json())
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def fetch_departures_forecast() -> pd.DataFrame:
+    try:
+        r = requests.get(f"{API_BASE}/departures/forecast", timeout=5)
+        if r.ok:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["window_start"] = pd.to_datetime(df["window_start"])
+            return df
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
 @st.cache_data(ttl=5, show_spinner=False)
 def fetch_sidebar_status() -> dict:
     """One call that replaces 8 separate sidebar API requests."""
@@ -2034,7 +2084,7 @@ elif page == "Arrivals":
 </div>
 """, unsafe_allow_html=True)
 
-    arr_resp = fetch_json(f"{API_BASE}/gate/agents")
+    arr_resp = fetch_json(f"{API_BASE}/arrivals/agents")
     arr_agents = arr_resp["agents_open"] if arr_resp else 0
 
     ac1, ac2, ac3 = st.columns([2, 1, 3])
@@ -2043,18 +2093,42 @@ elif page == "Arrivals":
     with ac2:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", key="update_arr_agents", use_container_width=True):
-            requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_arr_count})
+            requests.post(f"{API_BASE}/arrivals/agents", json={"agents_open": new_arr_count})
             st.rerun()
     with ac3:
         st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently <b style='color:#4ade80'>{arr_agents}</b> crew deployed at arrivals</div>", unsafe_allow_html=True)
 
     st.divider()
 
-    arr_fc = fetch_gate_forecast()
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        if st.button("Train Arrivals Model", use_container_width=True):
+            with st.spinner("Training XGBoost on arrivals data (STA + 20 min bell curve)…"):
+                r = requests.post(f"{API_BASE}/arrivals/train", timeout=180)
+            if r.ok:
+                d = r.json()
+                m = d.get("metrics", {})
+                st.success(f"Trained on {d['training_flights']} flights · {d['windows']} windows · MAE {m.get('MAE','?')} · MAPE {m.get('MAPE_%','?')}%")
+            else:
+                st.error(f"Training failed: {r.text}")
+    with btn_col2:
+        if st.button("Run Arrivals Forecast & Generate Alerts", type="primary", use_container_width=True):
+            with st.spinner("Predicting arrivals load…"):
+                r = requests.post(f"{API_BASE}/arrivals/run", timeout=120)
+            if r.ok:
+                d = r.json()
+                st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.error(f"Arrivals forecast failed: {r.text}")
+
+    arr_fc = fetch_arrivals_forecast()
     if not arr_fc.empty:
-        arr_fc["window_start"] = pd.to_datetime(arr_fc["window_start"])
+        st.divider()
         peak_arr  = int(arr_fc["predicted_load"].max())
         total_arr = int(arr_fc["predicted_load"].sum())
+        open_arr  = len(fetch_arrivals_alerts("OPEN"))
         peak_time = arr_fc.loc[arr_fc["predicted_load"].idxmax(), "window_start"].strftime("%H:%M")
 
         st.markdown(f"""
@@ -2063,7 +2137,11 @@ elif page == "Arrivals":
   <div class="stat-cell"><div class="stat-lbl">Peak Arrivals</div><div class="stat-val red">{peak_arr} pax</div></div>
   <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_time}</div></div>
   <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_arr:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Open Alerts</div><div class="stat-val {'red' if open_arr else 'green'}">{open_arr}</div></div>
 </div>""", unsafe_allow_html=True)
+
+        thresholds = fetch_json(f"{API_BASE}/thresholds")
+        arr_cfg = thresholds.get("arrivals", {}) if thresholds else {}
 
         fig_arr = go.Figure()
         fig_arr.add_trace(go.Bar(
@@ -2077,21 +2155,38 @@ elif page == "Arrivals":
             ),
             hovertemplate="<b>Arrivals %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
         ))
+        arr_colors = {"level_1": "#60a5fa", "level_2": "#a78bfa", "level_3": "#f87171"}
+        for key, color in arr_colors.items():
+            lvl = arr_cfg.get(key)
+            if lvl:
+                fig_arr.add_hline(
+                    y=lvl["threshold"],
+                    line_dash="dot", line_color=color, line_width=1,
+                    annotation_text=f"L{key[-1]} · {lvl['threshold']} pax",
+                    annotation_position="right",
+                    annotation_font_color=color, annotation_font_size=10,
+                )
         fig_arr.update_layout(
-            title=dict(text="ARRIVALS GATE · PASSENGER FLOW · 30-MIN WINDOWS", font=dict(size=10, color="#64748b"), x=0),
+            title=dict(text="ARRIVALS · PASSENGER FLOW · 30-MIN WINDOWS (STA + 20 MIN BELL CURVE)", font=dict(size=10, color="#64748b"), x=0),
             plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
             xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
-            margin=dict(l=10, r=20, t=36, b=10), height=300,
+            margin=dict(l=10, r=90, t=36, b=10), height=300,
         )
         st.plotly_chart(fig_arr, use_container_width=True)
+
+        with st.expander("Raw data table", expanded=False):
+            st.dataframe(
+                arr_fc.rename(columns={"window_start": "Window", "predicted_load": "Arrivals Pax"}),
+                use_container_width=True, hide_index=True,
+            )
     else:
-        st.info("No arrival data yet — run the gate forecast to populate arrival windows.")
+        st.info("No arrivals forecast yet — click Run Arrivals Forecast above.")
 
     st.divider()
     st.markdown("<div class='sec-label'>Arrival Alerts</div>", unsafe_allow_html=True)
-    arr_open = fetch_gate_alerts("OPEN")
-    arr_ack  = fetch_gate_alerts("ACKNOWLEDGED")
+    arr_open_df = fetch_arrivals_alerts("OPEN")
+    arr_ack_df  = fetch_arrivals_alerts("ACKNOWLEDGED")
 
     atab_open, atab_ack, atab_all = st.tabs(["Open", "Acknowledged", "All"])
 
@@ -2100,13 +2195,13 @@ elif page == "Arrivals":
             st.markdown("<div style='color:#64748b; padding:16px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts</div>", unsafe_allow_html=True)
             return
         for _, row in df.iterrows():
-            status   = row.get("status", "OPEN")
-            load     = row.get("predicted_load", "?")
-            win      = str(row.get("window_start", ""))[:16]
-            n        = row.get("agents_to_add") or row.get("agents_to_close") or 0
+            status = row.get("status", "OPEN")
+            load   = row.get("predicted_load", "?")
+            win    = str(row.get("window_start", ""))[:16]
+            n      = row.get("agents_to_add") or row.get("agents_to_close") or 0
             if status == "ACKNOWLEDGED":
                 card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
-            elif row.get("type", "") == "gate_close":
+            elif row.get("type", "") == "arrivals_close":
                 card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Release {n} crew"
             else:
                 card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Deploy {n} more crew"
@@ -2115,7 +2210,7 @@ elif page == "Arrivals":
                 st.markdown(f"""
 <div class="alert-card {card_cls}">
   <div class="alert-title">{row['message']}</div>
-  <span class="stat-tag tag-gate">Arrivals</span>&nbsp;
+  <span class="stat-tag tag-checkin">Arrivals</span>&nbsp;
   <span class="desk-tag {tag_cls}">{tag_txt}</span>
   <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax</div>
 </div>""", unsafe_allow_html=True)
@@ -2124,16 +2219,16 @@ elif page == "Arrivals":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
                     if st.button("Confirm", key=f"arr_ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/gate/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        requests.post(f"{API_BASE}/arrivals/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
 
     with atab_open:
-        render_arr_alerts(arr_open, show_ack=True)
+        render_arr_alerts(arr_open_df, show_ack=True)
     with atab_ack:
-        render_arr_alerts(arr_ack)
+        render_arr_alerts(arr_ack_df)
     with atab_all:
-        render_arr_alerts(fetch_gate_alerts())
+        render_arr_alerts(fetch_arrivals_alerts())
 
 
 # ── Departures ─────────────────────────────────────────────────────────────────
@@ -2146,8 +2241,7 @@ elif page == "Departures":
 </div>
 """, unsafe_allow_html=True)
 
-    # Agent state control
-    agent_resp = fetch_json(f"{API_BASE}/gate/agents")
+    agent_resp = fetch_json(f"{API_BASE}/departures/agents")
     current_agents = agent_resp["agents_open"] if agent_resp else 0
 
     gc1, gc2, gc3 = st.columns([2, 1, 3])
@@ -2156,200 +2250,148 @@ elif page == "Departures":
     with gc2:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", key="update_agents", use_container_width=True):
-            requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_agent_count})
+            requests.post(f"{API_BASE}/departures/agents", json={"agents_open": new_agent_count})
             st.rerun()
     with gc3:
         st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
-    if st.button("Run Gate Forecast & Generate Alerts", type="primary", use_container_width=True):
-        with st.spinner("Deriving gate predictions from security…"):
-            r = requests.post(f"{API_BASE}/gate/run", timeout=120)
-        if r.ok:
-            d = r.json()
-            st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
-            st.rerun()
-        else:
-            st.error(f"Gate forecast failed: {r.text}")
+    dep_btn1, dep_btn2 = st.columns(2)
+    with dep_btn1:
+        if st.button("Train Departures Gate Model", use_container_width=True):
+            with st.spinner("Training XGBoost on departures gate data (STD − 45 min bell curve)…"):
+                r = requests.post(f"{API_BASE}/departures/train", timeout=180)
+            if r.ok:
+                d = r.json()
+                m = d.get("metrics", {})
+                st.success(f"Trained on {d['training_flights']} flights · {d['windows']} windows · MAE {m.get('MAE','?')} · MAPE {m.get('MAPE_%','?')}%")
+            else:
+                st.error(f"Training failed: {r.text}")
+    with dep_btn2:
+        if st.button("Run Departures Forecast & Generate Alerts", type="primary", use_container_width=True):
+            with st.spinner("Predicting departures gate load…"):
+                r = requests.post(f"{API_BASE}/departures/run", timeout=120)
+            if r.ok:
+                d = r.json()
+                st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.error(f"Departures forecast failed: {r.text}")
 
-    # Charts
-    gate_forecast = fetch_gate_forecast()
-    sec_forecast = fetch_security_forecast()
+    dep_forecast = fetch_departures_forecast()
 
-    if not gate_forecast.empty:
+    if not dep_forecast.empty:
         st.divider()
 
-        peak_gate = int(gate_forecast["predicted_load"].max())
-        total_gate = int(gate_forecast["predicted_load"].sum())
-        open_gate = len(fetch_gate_alerts("OPEN"))
-        peak_gate_time = gate_forecast.loc[gate_forecast["predicted_load"].idxmax(), "window_start"].strftime("%H:%M") if not gate_forecast.empty else "--:--"
+        peak_dep = int(dep_forecast["predicted_load"].max())
+        total_dep = int(dep_forecast["predicted_load"].sum())
+        open_dep = len(fetch_departures_alerts("OPEN"))
+        peak_dep_time = dep_forecast.loc[dep_forecast["predicted_load"].idxmax(), "window_start"].strftime("%H:%M")
 
         st.markdown(f"""
 <div class="stat-strip">
-  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{len(gate_forecast)}</div></div>
-  <div class="stat-cell"><div class="stat-lbl">Peak Load</div><div class="stat-val red">{peak_gate} pax</div></div>
-  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_gate_time}</div></div>
-  <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_gate:,}</div></div>
-  <div class="stat-cell"><div class="stat-lbl">Open Alerts</div><div class="stat-val {'red' if open_gate else 'green'}">{open_gate}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{len(dep_forecast)}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Load</div><div class="stat-val red">{peak_dep} pax</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_dep_time}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_dep:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Open Alerts</div><div class="stat-val {'red' if open_dep else 'green'}">{open_dep}</div></div>
 </div>""", unsafe_allow_html=True)
 
-        fig = go.Figure()
+        thresholds = fetch_json(f"{API_BASE}/thresholds")
+        dep_cfg = thresholds.get("departures_gate", {}) if thresholds else {}
 
-        # Gate bars (drawn first so reference line renders on top)
+        fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=gate_forecast["window_start"],
-            y=gate_forecast["predicted_load"],
+            x=dep_forecast["window_start"],
+            y=dep_forecast["predicted_load"],
             name="Gate load",
             marker=dict(
-                color=gate_forecast["predicted_load"],
+                color=dep_forecast["predicted_load"],
                 colorscale=[[0, "#4ade80"], [0.45, "#fb923c"], [1, "#f87171"]],
                 showscale=False,
             ),
             hovertemplate="<b>Gate %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
         ))
 
-        # Security reference line on top
-        if not sec_forecast.empty:
-            fig.add_trace(go.Scatter(
-                x=sec_forecast["window_start"],
-                y=sec_forecast["predicted_load"],
-                name="Security load",
-                mode="lines+markers",
-                line=dict(color="#fb923c", width=2.5),
-                marker=dict(size=4, color="#fb923c"),
-                hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
-            ))
-
-        # Gate threshold lines
-        thresholds = fetch_json(f"{API_BASE}/thresholds")
-        gate_cfg = thresholds.get("gate", {}) if thresholds else {}
-        gate_colors = {"level_1": "#4ade80", "level_2": "#fb923c", "level_3": "#f87171"}
-        for key, color in gate_colors.items():
-            lvl = gate_cfg.get(key)
+        dep_colors = {"level_1": "#4ade80", "level_2": "#fb923c", "level_3": "#f87171"}
+        for key, color in dep_colors.items():
+            lvl = dep_cfg.get(key)
             if lvl:
                 fig.add_hline(
                     y=lvl["threshold"],
-                    line_dash="dot",
-                    line_color=color,
-                    line_width=1,
+                    line_dash="dot", line_color=color, line_width=1,
                     annotation_text=f"L{key[-1]} · {lvl['threshold']} pax",
                     annotation_position="right",
-                    annotation_font_color=color,
-                    annotation_font_size=10,
+                    annotation_font_color=color, annotation_font_size=10,
                 )
 
         fig.update_layout(
-            title=dict(text="GATE · BOARDING LOAD · 30-MIN WINDOWS (+30 MIN OFFSET)", font=dict(size=10, color="#64748b"), x=0),
-            plot_bgcolor="#0b0d10",
-            paper_bgcolor="#0b0d10",
-            font_color="#64748b",
+            title=dict(text="DEPARTURES GATE · BOARDING LOAD · 30-MIN WINDOWS (STD − 45 MIN BELL CURVE)", font=dict(size=10, color="#64748b"), x=0),
+            plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
             xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
             legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
-            margin=dict(l=10, r=90, t=36, b=10),
-            height=320,
-            barmode="overlay",
+            margin=dict(l=10, r=90, t=36, b=10), height=320,
         )
         st.plotly_chart(fig, use_container_width=True)
 
         with st.expander("Raw data table", expanded=False):
             st.dataframe(
-                gate_forecast.rename(columns={
-                    "window_start": "Window",
-                    "security_load": "Security Pax",
-                    "predicted_load": "Gate Pax",
-                }),
-                use_container_width=True,
-                hide_index=True,
+                dep_forecast.rename(columns={"window_start": "Window", "predicted_load": "Gate Pax"}),
+                use_container_width=True, hide_index=True,
             )
     else:
-        st.info("No gate forecast yet — click Run Gate Forecast above (requires security forecast first).")
+        st.info("No departures gate forecast yet — click Run Departures Forecast above.")
 
     st.divider()
-    st.markdown("### Gate Sensor Data")
-    st.caption("VS133-P sensor at the boarding gate — actual scanned counts vs predicted load.")
+    st.markdown("<div class='sec-label'>Departures Gate Alerts</div>", unsafe_allow_html=True)
 
-    gcol1, gcol2, gcol3 = st.columns(3)
-    with gcol1:
-        if st.button("Simulate Gate Sensor (full day)", use_container_width=True):
-            with st.spinner("Injecting gate sensor data…"):
-                r = requests.post(f"{API_BASE}/gate/sensor/simulate", timeout=30)
-            if r.ok:
-                d = r.json()
-                st.success(f"{d.get('windows_injected', 0)} windows injected")
-                st.rerun()
+    dep_open_df = fetch_departures_alerts("OPEN")
+    dep_ack_df  = fetch_departures_alerts("ACKNOWLEDGED")
+
+    dtab_open, dtab_ack, dtab_all = st.tabs(["Open", "Acknowledged", "All"])
+
+    def render_dep_alerts(df, show_ack=False):
+        if df.empty:
+            st.markdown("<div style='color:#64748b; padding:16px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts</div>", unsafe_allow_html=True)
+            return
+        for _, row in df.iterrows():
+            status = row.get("status", "OPEN")
+            load   = row.get("predicted_load", "?")
+            win    = str(row.get("window_start", ""))[:16]
+            n      = row.get("agents_to_add") or row.get("agents_to_close") or 0
+            if status == "ACKNOWLEDGED":
+                card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
+            elif row.get("type", "") == "departures_gate_close":
+                card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Release {n} agent(s)"
             else:
-                st.error(f"Failed: {r.text}")
-    with gcol2:
-        if st.button("Reconcile vs Predictions", key="gate_reconcile_btn", use_container_width=True):
-            with st.spinner("Reconciling…"):
-                r = requests.post(f"{API_BASE}/gate/sensor/reconcile", timeout=30)
-            if r.ok:
-                st.session_state["gate_reconcile"] = r.json()
-                st.rerun()
-            else:
-                st.error(f"Failed: {r.text}")
-    with gcol3:
-        if st.button("Auto-calibrate Flow Factor", key="gate_calibrate_btn", use_container_width=True,
-                     help="Derives empirical gate flow_factor from matched security vs gate sensor counts"):
-            with st.spinner("Calibrating…"):
-                r = requests.post(f"{API_BASE}/gate/sensor/calibrate", timeout=30)
-            if r.ok:
-                d = r.json()
-                if d.get("status") == "calibrated":
-                    st.success(f"Gate flow factor updated: {d['old_flow_factor']} → **{d['new_flow_factor']}** ({d['windows_matched']} windows)")
-                else:
-                    st.warning(f"Not enough data yet ({d.get('windows_matched', 0)} windows matched, need ≥5)")
-            else:
-                st.error(f"Failed: {r.text}")
-
-    # sensor counts chart
-    gate_counts_raw = fetch_json(f"{API_BASE}/gate/sensor/counts?hours=24")
-    if gate_counts_raw:
-        gate_counts = pd.DataFrame(gate_counts_raw)
-        gate_counts["window_start"] = pd.to_datetime(gate_counts["window_start"])
-
-        fig_g = go.Figure()
-        fig_g.add_trace(go.Bar(
-            x=gate_counts["window_start"],
-            y=gate_counts["total_in"],
-            name="Actual (sensor)",
-            marker_color="#a052e0",
-            hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (actual)<extra></extra>",
-        ))
-        if not gate_forecast.empty:
-            fig_g.add_trace(go.Scatter(
-                x=gate_forecast["window_start"],
-                y=gate_forecast["predicted_load"],
-                name="Predicted",
-                line=dict(color="#f0a500", width=2, dash="dot"),
-                hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (predicted)<extra></extra>",
-            ))
-        fig_g.update_layout(
-            title="Gate Sensor: Actual vs Predicted",
-            plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
-            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#64748b")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
-            legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
-            margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
-        )
-        st.plotly_chart(fig_g, use_container_width=True)
-
-    # reconcile results
-    if "gate_reconcile" in st.session_state:
-        rec = pd.DataFrame(st.session_state["gate_reconcile"])
-        if not rec.empty:
-            confirmed = len(rec[rec["status"] == "confirmed"])
-            escalated = len(rec[rec["status"] == "escalated"])
-            no_data   = len(rec[rec["status"] == "no_sensor_data"])
-            st.markdown(f"""
-<div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val" style="color:#52c07a">{confirmed}</div><div class="kpi-lbl">Confirmed</div></div>
-  <div class="kpi-box"><div class="kpi-val" style="color:#e05252">{escalated}</div><div class="kpi-lbl">Escalated</div></div>
-  <div class="kpi-box"><div class="kpi-val" style="color:#888">{no_data}</div><div class="kpi-lbl">No sensor data</div></div>
+                card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Deploy {n} more agent(s)"
+            col_card, col_btn = st.columns([5, 1])
+            with col_card:
+                st.markdown(f"""
+<div class="alert-card {card_cls}">
+  <div class="alert-title">{row['message']}</div>
+  <span class="stat-tag tag-gate">Departures</span>&nbsp;
+  <span class="desk-tag {tag_cls}">{tag_txt}</span>
+  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax</div>
 </div>""", unsafe_allow_html=True)
-            with st.expander("Reconcile detail", expanded=False):
-                st.dataframe(rec, use_container_width=True, hide_index=True)
+            with col_btn:
+                if show_ack and status == "OPEN":
+                    st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
+                    emp = st.session_state.get("employee_name", "employee") or "employee"
+                    if st.button("Confirm", key=f"dep_ack_{row['id']}"):
+                        requests.post(f"{API_BASE}/departures/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        st.cache_data.clear()
+                        st.rerun()
+
+    with dtab_open:
+        render_dep_alerts(dep_open_df, show_ack=True)
+    with dtab_ack:
+        render_dep_alerts(dep_ack_df)
+    with dtab_all:
+        render_dep_alerts(fetch_departures_alerts())
 
 
 

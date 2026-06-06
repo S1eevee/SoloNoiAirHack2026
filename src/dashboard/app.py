@@ -132,20 +132,15 @@ with st.sidebar:
     st.markdown(f"{status_dot} {status_txt} &nbsp;·&nbsp; **{current_desks}** desk(s) open &nbsp;·&nbsp; **{open_alerts}** alert(s)", unsafe_allow_html=True)
     st.divider()
 
-    nav_options = {
-        "Train Model": "Train Model",
-        "Forecast": "Forecast",
-        f"Alerts ({open_alerts} open)" if open_alerts else "Alerts": "Alerts",
-        "Simulation": "Simulation",
-        "Settings": "Settings",
-    }
-    nav_keys = list(nav_options.keys())
-    nav_vals  = list(nav_options.values())
-    saved_page = st.session_state.get("current_page", "Train Model")
-    nav_index  = nav_vals.index(saved_page) if saved_page in nav_vals else 0
-    page_raw = st.radio("Navigation", nav_keys, index=nav_index, label_visibility="collapsed")
-    page = nav_options[page_raw]
+    nav_pages = ["Train Model", "Forecast", "Alerts", "Simulation", "Settings"]
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "Train Model"
+    saved_page = st.session_state["current_page"]
+    nav_index  = nav_pages.index(saved_page) if saved_page in nav_pages else 0
+    page = st.radio("Navigation", nav_pages, index=nav_index, key="nav_radio", label_visibility="collapsed")
     st.session_state["current_page"] = page
+    if open_alerts and page == "Alerts":
+        st.caption(f"⚠ {open_alerts} open alert(s)")
 
     st.divider()
     if demo_active:
@@ -189,6 +184,7 @@ if page == "Train Model":
                     st.markdown(f"**{f['filename']}** — {f['flights']:,} flights · {f['date_from'][:10]} → {f['date_to'][:10]}")
         if st.button("Clear training data", type="secondary"):
             requests.post(f"{API_BASE}/data/upload/training/clear")
+            st.cache_data.clear()
             st.rerun()
     else:
         st.warning("No training data loaded yet.")
@@ -397,6 +393,7 @@ elif page == "Alerts":
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", use_container_width=True):
             requests.post(f"{API_BASE}/alerts/desks", json={"desks_open": new_desk_count})
+            st.cache_data.clear()
             st.rerun()
     with dc3:
         st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_desks}</b> open desk(s)</div>", unsafe_allow_html=True)
@@ -1296,6 +1293,7 @@ elif page == "Settings":
             if st.button("Apply recommended thresholds", type="primary", use_container_width=True):
                 requests.post(f"{API_BASE}/thresholds/auto-detect?apply=true", timeout=30)
                 del st.session_state["auto_rec"]
+                st.cache_data.clear()
                 st.success("Thresholds updated")
                 st.rerun()
 

@@ -13,7 +13,7 @@ SCHEDULE_PATH = Path("data/processed/uploaded_schedule.csv")
 
 @router.post("/train")
 async def train_model():
-    """Train XGBoost on uploaded historical data."""
+    """Train XGBoost on uploaded historical data, augmented with sensor-validated rows."""
     if not TRAINING_PATH.exists():
         raise HTTPException(404, "No training data uploaded. POST /data/upload/training first.")
 
@@ -23,7 +23,19 @@ async def train_model():
     from src.model.evaluate import evaluate
 
     df = pd.read_csv(TRAINING_PATH, parse_dates=["scheduled_time"])
-    features = build_feature_matrix(df)
+    features = build_feature_matrix(clean_flights(df))
+
+    # Merge in sensor-validated rows if available — sensor failure never blocks training
+    sensor_window_count = 0
+    try:
+        from src.sensor.training import load_sensor_training
+        sensor_rows = load_sensor_training()
+        if sensor_rows is not None:
+            features = pd.concat([features, sensor_rows], ignore_index=True)
+            features = features.drop_duplicates(subset=["window_start"], keep="last")
+            sensor_window_count = len(sensor_rows)
+    except Exception:
+        pass
 
     model = train(features, save=True)
     metrics = evaluate(model, features)
@@ -32,6 +44,7 @@ async def train_model():
         "status": "trained",
         "training_flights": len(df),
         "windows": len(features),
+        "sensor_validated_windows": sensor_window_count,
         "metrics": metrics,
     }
 

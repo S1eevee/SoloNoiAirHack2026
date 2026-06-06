@@ -79,9 +79,9 @@ st.markdown("""
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=4)
-def fetch_json(url, **kwargs):
+def fetch_json(url):
     try:
-        r = requests.get(url, timeout=5, **kwargs)
+        r = requests.get(url, timeout=5)
         return r.json() if r.ok else None
     except Exception:
         return None
@@ -298,8 +298,8 @@ elif page == "Forecast":
         DESK_HOURLY_RATE = 18  # €/hr per desk (fully-loaded cost estimate)
         WINDOW_HRS = 0.5
 
-        thresholds_cfg = fetch_json(f"{API_BASE}/thresholds")
-        checkin_cfg = thresholds_cfg.get("checkin", {}) if thresholds_cfg else {}
+        thresholds_raw = fetch_json(f"{API_BASE}/thresholds")
+        checkin_cfg = thresholds_raw.get("checkin", {}) if thresholds_raw else {}
         lvl1 = checkin_cfg.get("level_1", {}).get("threshold", 75)
         lvl2 = checkin_cfg.get("level_2", {}).get("threshold", 125)
         lvl3 = checkin_cfg.get("level_3", {}).get("threshold", 200)
@@ -333,8 +333,8 @@ elif page == "Forecast":
 </div>""", unsafe_allow_html=True)
 
         # load thresholds for reference lines
-        thresholds = fetch_json(f"{API_BASE}/thresholds")
-        checkin = thresholds.get("checkin", {}) if thresholds else {}
+        thresholds = thresholds_raw
+        checkin = checkin_cfg
 
         fig = go.Figure()
 

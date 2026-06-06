@@ -8,6 +8,7 @@ from src.alerts.state import (
     get_desks_open, set_desks_open,
     get_lanes_open, get_agents_open,
     get_security_alerts, get_gate_alerts,
+    set_alert_note,
 )
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -61,6 +62,19 @@ async def update_desk_state(body: DeskStateRequest):
 @router.get("")
 async def list_alerts(status: Optional[str] = Query(None, enum=["OPEN", "ACKNOWLEDGED", "RESOLVED"])):
     return get_alerts(status=status)
+
+
+class NoteRequest(BaseModel):
+    note: str
+
+
+@router.patch("/{alert_id}/note")
+async def set_note(alert_id: int, body: NoteRequest):
+    """Set or update the admin note/label on any alert (by id, any zone)."""
+    ok = set_alert_note(alert_id, body.note)
+    if not ok:
+        raise HTTPException(404, f"Alert {alert_id} not found")
+    return {"alert_id": alert_id, "note": body.note.strip()}
 
 
 @router.post("/{alert_id}/acknowledge")

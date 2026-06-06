@@ -105,6 +105,7 @@ st.markdown("""
 .desk-open  { background: #f8717118; color: #f87171; border: 1px solid #f8717130; }
 .desk-close { background: #4ade8018; color: #4ade80; border: 1px solid #4ade8030; }
 .desk-ok    { background: #fb923c18; color: #fb923c; border: 1px solid #fb923c30; }
+.alert-note { font-size: 0.75rem; color: #60a5fa; margin-top: 6px; font-style: italic; }
 
 /* sidebar status pills */
 .dot-green { color: #4ade80; font-size: 0.75rem; }
@@ -887,6 +888,9 @@ elif page == "Alerts":
                 n = _int(row.get("desks_to_add")) or _int(row.get("lanes_to_add")) or _int(row.get("agents_to_add"))
                 tag_txt  = f"Open {n} more {unit}"
 
+            note      = row.get("note") or ""
+            note_html = f'<div class="alert-note">📝 {note}</div>' if note else ""
+
             col_card, col_btn = st.columns([5, 1])
             with col_card:
                 st.markdown(f"""
@@ -895,7 +899,19 @@ elif page == "Alerts":
   <span class="stat-tag {src_tag}">{source}</span>&nbsp;
   <span class="desk-tag {tag_cls}">{tag_txt}</span>
   <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax</div>
+  {note_html}
 </div>""", unsafe_allow_html=True)
+                with st.expander("📝 Add / edit note", expanded=False):
+                    new_note = st.text_input(
+                        "Note", value=note,
+                        placeholder="e.g. Delegated to Maria, Gate B…",
+                        key=f"note_input_{source}_{row['id']}",
+                        label_visibility="collapsed",
+                    )
+                    if st.button("Save note", key=f"note_save_{source}_{row['id']}"):
+                        requests.patch(f"{API_BASE}/alerts/{int(row['id'])}/note", json={"note": new_note})
+                        st.cache_data.clear()
+                        st.rerun()
             with col_btn:
                 if show_ack and status == "OPEN":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)

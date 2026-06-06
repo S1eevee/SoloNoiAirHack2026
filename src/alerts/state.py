@@ -65,6 +65,8 @@ def init_db():
             "desks_to_add INTEGER", "desks_to_close INTEGER",
             "zone TEXT NOT NULL DEFAULT 'checkin'",
             "lanes_to_open INTEGER", "lanes_to_add INTEGER", "lanes_to_close INTEGER",
+            "agents_to_open INTEGER", "agents_to_add INTEGER", "agents_to_close INTEGER",
+            "note TEXT",
         ):
             try:
                 conn.execute(f"ALTER TABLE alerts ADD COLUMN {col}")
@@ -186,6 +188,16 @@ def resolve_alert(alert_id: int) -> bool:
         )
         conn.commit()
     return True
+
+
+def set_alert_note(alert_id: int, note: str) -> bool:
+    init_db()
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE alerts SET note = ? WHERE id = ?", (note.strip(), alert_id)
+        )
+        conn.commit()
+    return cur.rowcount > 0
 
 
 def clear_alerts():

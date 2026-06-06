@@ -18,6 +18,28 @@ class DeskStateRequest(BaseModel):
     desks_open: int
 
 
+@router.get("/status")
+async def get_status():
+    """Single endpoint for all sidebar state — reduces dashboard API calls."""
+    import json
+    from pathlib import Path
+    desks = get_desks_open()
+    open_alerts = get_alerts(status="OPEN")
+    manifest_path = Path("data/processed/training_manifest.json")
+    demo_active = False
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text())
+            demo_active = any(e.get("filename") == "demo_data" for e in manifest)
+        except Exception:
+            pass
+    return {
+        "desks_open": desks,
+        "open_alert_count": len(open_alerts),
+        "demo_active": demo_active,
+    }
+
+
 @router.get("/desks")
 async def get_desk_state():
     return {"desks_open": get_desks_open()}

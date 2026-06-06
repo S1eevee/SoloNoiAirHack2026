@@ -78,14 +78,16 @@ st.markdown("""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def fetch_json(url, **kwargs):
+@st.cache_data(ttl=4, show_spinner=False)
+def fetch_json(url):
     try:
-        r = requests.get(url, timeout=5, **kwargs)
+        r = requests.get(url, timeout=5)
         return r.json() if r.ok else None
     except Exception:
         return None
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def fetch_forecast() -> pd.DataFrame:
     try:
         r = requests.get(f"{API_BASE}/forecast", timeout=5)
@@ -99,6 +101,7 @@ def fetch_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=4, show_spinner=False)
 def fetch_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
@@ -164,7 +167,6 @@ def api_online() -> bool:
     except Exception:
         return False
 
-
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## SoloNoi")
@@ -182,6 +184,8 @@ with st.sidebar:
     open_alerts = len(fetch_alerts("OPEN"))
     open_sec_alerts = len(fetch_security_alerts("OPEN"))
     open_gate_alerts = len(fetch_gate_alerts("OPEN"))
+    demo_status = fetch_json(f"{API_BASE}/demo/status")
+    demo_active = demo_status.get("demo_active", False) if demo_status else False
 
     status_dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     status_txt = "API online" if online else "API offline"
@@ -207,14 +211,15 @@ with st.sidebar:
     page_raw = st.radio("Navigation", nav_keys, index=nav_index, label_visibility="collapsed")
     page = nav_options[page_raw]
     st.session_state["current_page"] = page
+    if open_alerts and page == "Alerts":
+        st.caption(f"⚠ {open_alerts} open alert(s)")
 
     st.divider()
-    demo_status = fetch_json(f"{API_BASE}/demo/status")
-    demo_active = demo_status.get("demo_active", False) if demo_status else False
     if demo_active:
         if st.button("✕ Unload Demo", use_container_width=True, help="Clear demo data and return to a clean state"):
             r = requests.post(f"{API_BASE}/demo/unload", timeout=30)
             if r.ok:
+                st.cache_data.clear()
                 st.session_state["current_page"] = "Train Model"
                 st.rerun()
             else:
@@ -226,6 +231,7 @@ with st.sidebar:
             if r.ok:
                 d = r.json()
                 st.success(f"Demo ready · {d['windows_predicted']} windows · {d['alerts_generated']} alerts")
+                st.cache_data.clear()
                 st.session_state["current_page"] = "Forecast"
                 st.rerun()
             else:
@@ -250,6 +256,7 @@ if page == "Train Model":
                     st.markdown(f"**{f['filename']}** — {f['flights']:,} flights · {f['date_from'][:10]} → {f['date_to'][:10]}")
         if st.button("Clear training data", type="secondary"):
             requests.post(f"{API_BASE}/data/upload/training/clear")
+            st.cache_data.clear()
             st.rerun()
     else:
         st.warning("No training data loaded yet.")
@@ -328,6 +335,7 @@ elif page == "Forecast":
         if r.ok:
             d = r.json()
             st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+            st.cache_data.clear()
             st.rerun()
         else:
             st.error(f"Forecast failed: {r.text}")
@@ -350,8 +358,8 @@ elif page == "Forecast":
         DESK_HOURLY_RATE = 18  # €/hr per desk (fully-loaded cost estimate)
         WINDOW_HRS = 0.5
 
-        thresholds_cfg = fetch_json(f"{API_BASE}/thresholds")
-        checkin_cfg = thresholds_cfg.get("checkin", {}) if thresholds_cfg else {}
+        thresholds_raw = fetch_json(f"{API_BASE}/thresholds")
+        checkin_cfg = thresholds_raw.get("checkin", {}) if thresholds_raw else {}
         lvl1 = checkin_cfg.get("level_1", {}).get("threshold", 75)
         lvl2 = checkin_cfg.get("level_2", {}).get("threshold", 125)
         lvl3 = checkin_cfg.get("level_3", {}).get("threshold", 200)
@@ -385,8 +393,8 @@ elif page == "Forecast":
 </div>""", unsafe_allow_html=True)
 
         # load thresholds for reference lines
-        thresholds = fetch_json(f"{API_BASE}/thresholds")
-        checkin = thresholds.get("checkin", {}) if thresholds else {}
+        thresholds = thresholds_raw
+        checkin = checkin_cfg
 
         fig = go.Figure()
 
@@ -457,6 +465,7 @@ elif page == "Alerts":
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", use_container_width=True):
             requests.post(f"{API_BASE}/alerts/desks", json={"desks_open": new_desk_count})
+            st.cache_data.clear()
             st.rerun()
     with dc3:
         st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_desks}</b> open desk(s)</div>", unsafe_allow_html=True)
@@ -513,14 +522,16 @@ elif page == "Alerts":
                         requests.post(f"{API_BASE}/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.session_state.pop("desk_count_cache", None)
                         st.session_state["current_page"] = "Alerts"
+                        st.cache_data.clear()
                         st.rerun()
 
+    all_alerts = fetch_alerts()
     with tab_open:
-        render_alerts(fetch_alerts("OPEN"), show_ack=True)
+        render_alerts(all_alerts[all_alerts["status"] == "OPEN"] if not all_alerts.empty else all_alerts, show_ack=True)
     with tab_ack:
-        render_alerts(fetch_alerts("ACKNOWLEDGED"))
+        render_alerts(all_alerts[all_alerts["status"] == "ACKNOWLEDGED"] if not all_alerts.empty else all_alerts)
     with tab_all:
-        render_alerts(fetch_alerts())
+        render_alerts(all_alerts)
 
 
 # ── Simulation ─────────────────────────────────────────────────────────────────
@@ -549,7 +560,7 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2840;width:100%}
 .btn-p{background:#33220a;color:#f0b84a;border:1px solid #5a3a14}.btn-p:hover{background:#42300f}
 .btn-p:disabled{background:#1e180a;color:#5a4520;border-color:#2a2010;cursor:not-allowed}
 .btn-r{background:#141c2e;color:#7a9acc;border:1px solid #1e3050}.btn-r:hover{background:#1a2438}
-.stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;padding:8px;background:#0d1118;border-radius:6px}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:8px;background:#0d1118;border-radius:6px}
 .sbox{text-align:center;padding:6px 3px;background:#111825;border-radius:5px;border:1px solid #1a2338}
 .slbl{color:#445566;font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .sval{font-size:16px;font-weight:700}
@@ -625,7 +636,6 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2840;width:100%}
       <div class="sbox"><div class="slbl">In System</div><div class="sval c-b" id="ss">0</div></div>
       <div class="sbox"><div class="slbl">In Queue</div><div class="sval c-y" id="sq">0</div></div>
       <div class="sbox"><div class="slbl">Processed</div><div class="sval c-g" id="sp">0</div></div>
-      <div class="sbox"><div class="slbl">Turned Away</div><div class="sval c-r" id="sb">0</div></div>
       <div class="sbox"><div class="slbl">Open Desks</div><div class="sval c-w" id="sd">--</div></div>
       <div class="sbox"><div class="slbl">Avg Wait</div><div class="sval c-o" id="sw">--</div></div>
     </div>
@@ -1111,15 +1121,15 @@ function tick(){
         document.getElementById('btnStart').disabled=false;
         document.getElementById('btnPause').disabled=true;
         document.getElementById('btnDay').disabled=false;
-        document.getElementById('dayProg').textContent='Day complete — '+processed+' processed, '+balked+' turned away';
-        msg('Full day complete — '+processed+' processed, '+balked+' turned away',true);
+        document.getElementById('dayProg').textContent='Day complete — '+processed+' processed';
+        msg('Full day complete — '+processed+' processed',true);
       }
     } else if(winTotal>0&&running){
       // Single window mode — stop once
       running=false;
       document.getElementById('btnStart').disabled=false;
       document.getElementById('btnPause').disabled=true;
-      msg('Window complete — '+processed+' processed, '+balked+' turned away',true);
+      msg('Window complete — '+processed+' processed',true);
     }
   }
 
@@ -1192,7 +1202,6 @@ function render(){
   document.getElementById('ss').textContent=live;
   document.getElementById('sq').textContent=qc;
   document.getElementById('sp').textContent=processed;
-  document.getElementById('sb').textContent=balked;
   if(ciCount>0){
     const avg=(totalWait/ciCount/FPS).toFixed(1);
     const el=document.getElementById('sw');
@@ -1879,6 +1888,7 @@ elif page == "Settings":
             if st.button("Apply recommended thresholds", type="primary", use_container_width=True):
                 requests.post(f"{API_BASE}/thresholds/auto-detect?apply=true", timeout=30)
                 del st.session_state["auto_rec"]
+                st.cache_data.clear()
                 st.success("Thresholds updated")
                 st.rerun()
 

@@ -929,7 +929,7 @@ elif page == "Alerts":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
-  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; All Alerts &nbsp;·&nbsp; Check-in · Security · Gate</div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; All Alerts &nbsp;·&nbsp; Check-in · Security · Dep Gate · Arrivals</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -939,8 +939,8 @@ elif page == "Alerts":
 
     if "alerts_source_filter" not in st.session_state:
         st.session_state["alerts_source_filter"] = "All"
-    f1, f2, f3, f4 = st.columns(4)
-    for col, label in zip([f1, f2, f3, f4], ["All", "Check-in", "Security", "Departures"]):
+    f1, f2, f3, f4, f5, f6 = st.columns(6)
+    for col, label in zip([f1, f2, f3, f4, f5, f6], ["All", "Check-in", "Security", "Dep Gate", "Arrivals", "Gate"]):
         active = st.session_state["alerts_source_filter"] == label
         with col:
             if st.button(label, use_container_width=True, type="primary" if active else "secondary", key=f"filter_{label}"):
@@ -948,35 +948,30 @@ elif page == "Alerts":
                 st.rerun()
     source_filter = st.session_state["alerts_source_filter"]
 
-    # Fetch all three alert sources and combine
+    # Fetch all five alert sources and combine
     ci_df   = fetch_alerts()
     sec_df  = fetch_security_alerts()
     gate_df = fetch_gate_alerts()
+    arr_df  = fetch_arrivals_alerts()
+    dep_df  = fetch_departures_alerts()
 
-    all_combined = pd.concat([ci_df, sec_df, gate_df], ignore_index=True)
+    all_combined = pd.concat([ci_df, sec_df, gate_df, arr_df, dep_df], ignore_index=True)
 
     def _classify_source(row) -> str:
-        """Derive zone from zone column, then fall back to message keyword scan."""
         zone = str(row.get("zone", "") or "").lower()
-        if zone == "gate":
-            return "Gate"
-        if zone == "security":
-            return "Security"
-        if zone in ("checkin", ""):
-            msg = str(row.get("message", "") or "").upper()
-            if "GATE" in msg:
-                return "Gate"
-            if "SECURITY" in msg:
-                return "Security"
+        if zone == "arrivals":       return "Arrivals"
+        if zone == "departures_gate": return "Dep Gate"
+        if zone == "gate":           return "Gate"
+        if zone == "security":       return "Security"
         return "Check-in"
 
     def _ack_endpoint(row) -> str:
         src = row["_source"]
         aid = row["id"]
-        if src == "Gate":
-            return f"{API_BASE}/gate/alerts/{aid}/acknowledge"
-        if src == "Security":
-            return f"{API_BASE}/security/alerts/{aid}/acknowledge"
+        if src == "Arrivals":  return f"{API_BASE}/arrivals/alerts/{aid}/acknowledge"
+        if src == "Dep Gate":  return f"{API_BASE}/departures/alerts/{aid}/acknowledge"
+        if src == "Gate":      return f"{API_BASE}/gate/alerts/{aid}/acknowledge"
+        if src == "Security":  return f"{API_BASE}/security/alerts/{aid}/acknowledge"
         return f"{API_BASE}/alerts/{aid}/acknowledge"
 
     if not all_combined.empty:
@@ -986,7 +981,13 @@ elif page == "Alerts":
     if source_filter != "All" and not all_combined.empty:
         all_combined = all_combined[all_combined["_source"] == source_filter].reset_index(drop=True)
 
-    SOURCE_TAG = {"Check-in": "tag-checkin", "Security": "tag-security", "Departures": "tag-gate"}
+    SOURCE_TAG = {
+        "Check-in": "tag-checkin",
+        "Security": "tag-security",
+        "Gate":     "tag-gate",
+        "Dep Gate": "tag-gate",
+        "Arrivals": "tag-checkin",
+    }
 
     def _int(val):
         """Safely convert a possibly-NaN pandas value to int."""
@@ -1009,22 +1010,22 @@ elif page == "Alerts":
             win        = str(row.get("window_start", ""))[:16]
             src_tag    = SOURCE_TAG.get(source, "tag-blue")
 
-            units = {"Check-in": "desk(s)", "Security": "lane(s)", "Gate": "agent(s)"}
-            unit  = units.get(source, "unit(s)")
+            unit = {"Check-in": "desk(s)", "Security": "lane(s)",
+                    "Gate": "agent(s)", "Dep Gate": "agent(s)", "Arrivals": "staff"}.get(source, "unit(s)")
+            close_types = ("checkin_close", "security_close", "gate_close",
+                           "arrivals_close", "departures_gate_close")
 
             if status == "ACKNOWLEDGED":
                 card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
-            elif alert_type in ("checkin_close", "security_close", "gate_close"):
+            elif alert_type in close_types:
                 card_cls = "alert-close"
                 tag_cls  = "desk-close"
                 n = _int(row.get("desks_to_close")) or _int(row.get("lanes_to_close")) or _int(row.get("agents_to_close"))
-                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Departures": "agent(s)"}.get(source, "unit(s)")
                 tag_txt = f"Close {n} {unit}"
             else:
                 card_cls = "alert-open"
                 tag_cls  = "desk-open"
                 n = _int(row.get("desks_to_add")) or _int(row.get("lanes_to_add")) or _int(row.get("agents_to_add"))
-                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Departures": "agent(s)"}.get(source, "unit(s)")
                 tag_txt = f"Open {n} more {unit}"
 
             note      = row.get("note") or ""

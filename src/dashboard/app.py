@@ -2156,58 +2156,6 @@ elif page == "Gate":
             with st.expander("Reconcile detail", expanded=False):
                 st.dataframe(rec, use_container_width=True, hide_index=True)
 
-    st.divider()
-    st.markdown("### Gate Agent Alerts")
-
-    emp_name = st.text_input("Your name (audit trail)", value=st.session_state.get("employee_name", ""), placeholder="Enter your name…", key="gate_emp")
-    if emp_name:
-        st.session_state["employee_name"] = emp_name
-
-    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
-    gtab_open, gtab_ack, gtab_all = st.tabs(["Open", "Acknowledged", "All"])
-
-    def render_gate_alerts(df: pd.DataFrame, show_ack: bool = False):
-        if df.empty:
-            st.markdown("<div style='color:#666; padding:20px 0'>No alerts in this category.</div>", unsafe_allow_html=True)
-            return
-        for _, row in df.iterrows():
-            alert_type   = row.get("type", "")
-            status       = row.get("status", "OPEN")
-            agents_add   = row.get("agents_to_add") or 0
-            agents_close = row.get("agents_to_close") or 0
-            agents_open  = row.get("agents_to_open") or 0
-            load         = row.get("predicted_load", "?")
-            win          = str(row.get("window_start", ""))[:16]
-
-            if status == "ACKNOWLEDGED":
-                card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
-            elif alert_type == "gate_close":
-                card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Release {agents_close} agent(s)"
-            else:
-                card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Deploy {agents_add} more agent(s)"
-
-            col_card, col_btn = st.columns([5, 1])
-            with col_card:
-                st.markdown(f"""
-<div class="alert-card {card_cls}">
-  <div class="alert-title">{row['message']}</div>
-  <span class="desk-tag {tag_cls}">{tag_txt}</span>
-  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax &nbsp;·&nbsp; {agents_open} agent(s) needed</div>
-</div>""", unsafe_allow_html=True)
-            with col_btn:
-                if show_ack and status == "OPEN":
-                    st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
-                    emp = st.session_state.get("employee_name", "employee") or "employee"
-                    if st.button("Confirm", key=f"gate_ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/gate/alerts/{row['id']}/acknowledge", json={"employee": emp})
-                        st.rerun()
-
-    with gtab_open:
-        render_gate_alerts(fetch_gate_alerts("OPEN"), show_ack=True)
-    with gtab_ack:
-        render_gate_alerts(fetch_gate_alerts("ACKNOWLEDGED"))
-    with gtab_all:
-        render_gate_alerts(fetch_gate_alerts())
 
 
 # ── Settings ───────────────────────────────────────────────────────────────────

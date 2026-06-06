@@ -250,9 +250,9 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-    nav_pages = ["Train Model", "Forecast", "Alerts", "Security", "Gate", "Simulation", "Settings"]
+    nav_pages = ["Home", "Train Model", "Forecast", "Alerts", "Security", "Gate", "Simulation", "Settings"]
     if "current_page" not in st.session_state:
-        st.session_state["current_page"] = "Train Model"
+        st.session_state["current_page"] = "Home"
     saved_page = st.session_state["current_page"]
     nav_index  = nav_pages.index(saved_page) if saved_page in nav_pages else 0
     page = st.radio("Navigation", nav_pages, index=nav_index, key="nav_radio", label_visibility="collapsed")
@@ -284,9 +284,256 @@ with st.sidebar:
     st.markdown(f"<div style='font-size:0.68rem;color:#1e2a3a;text-transform:uppercase;letter-spacing:0.1em'>{datetime.now().strftime('%d %b %Y')}</div>", unsafe_allow_html=True)
 
 
+# ── Home ───────────────────────────────────────────────────────────────────────
+
+if page == "Home":
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Live operations dashboard &nbsp;·&nbsp; Queue times &amp; checkpoint status</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Gather current-window data ───────────────────────────────────────────
+    now = datetime.now()
+    # floor to current 30-min window
+    window_min = 0 if now.minute < 30 else 30
+    current_window = now.replace(minute=window_min, second=0, microsecond=0)
+    next_window    = current_window.replace(minute=window_min + 30) if window_min == 0 else current_window.replace(hour=current_window.hour + 1, minute=0)
+
+    checkin_fc  = fetch_forecast()
+    security_fc = fetch_security_forecast()
+    gate_fc     = fetch_gate_forecast()
+
+    def _load_now(df: pd.DataFrame) -> int:
+        if df.empty:
+            return 0
+        df2 = df.copy()
+        df2["window_start"] = pd.to_datetime(df2["window_start"])
+        row = df2[df2["window_start"].dt.hour == current_window.hour]
+        row = row[row["window_start"].dt.minute == window_min]
+        return int(row["predicted_load"].iloc[0]) if not row.empty else 0
+
+    def _peak(df: pd.DataFrame) -> int:
+        return int(df["predicted_load"].max()) if not df.empty else 1
+
+    ci_load  = _load_now(checkin_fc)
+    sec_load = _load_now(security_fc)
+    gate_load= _load_now(gate_fc)
+
+    ci_peak  = max(_peak(checkin_fc),  1)
+    sec_peak = max(_peak(security_fc), 1)
+    gate_peak= max(_peak(gate_fc),     1)
+
+    # Wait-time estimate: pax in window ÷ service rate × 60
+    # Rough service rates: check-in 4 pax/min/desk, security 8 pax/min/lane, gate 10 pax/min/agent
+    def _wait(load, workers, rate_per_worker):
+        if workers < 1 or load == 0:
+            return 0
+        capacity = workers * rate_per_worker * 30   # pax per 30-min window
+        utilisation = min(load / max(capacity, 1), 1.0)
+        # M/D/1 approximation: wait ≈ utilisation/(1-utilisation) × (1/rate)
+        if utilisation >= 0.99:
+            return 45
+        wait_min = (utilisation / (1 - utilisation)) * (1 / (workers * rate_per_worker))
+        return round(min(wait_min, 45), 1)
+
+    ci_wait   = _wait(ci_load,   max(current_desks, 1), 4)
+    sec_wait  = _wait(sec_load,  max(current_lanes, 1), 8)
+    gate_wait = _wait(gate_load, max(current_agents, 1), 10)
+
+    def _gauge(title, load, peak, wait_min, color, unit="pax"):
+        pct   = min(load / peak, 1.0) * 100
+        steps = [
+            dict(range=[0,      peak * 0.5],  color="#0f1318"),
+            dict(range=[peak*0.5, peak*0.75], color="#1a1a0a"),
+            dict(range=[peak*0.75, peak],      color="#1a0a0a"),
+        ]
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=load,
+            number=dict(suffix=f" {unit}", font=dict(size=28, color=color)),
+            delta=dict(reference=peak * 0.5, valueformat="+d",
+                       increasing=dict(color="#f87171"),
+                       decreasing=dict(color="#4ade80")),
+            title=dict(
+                text=f"<b>{title}</b><br><span style='font-size:0.72em;color:#475569'>~{wait_min} min wait · window {current_window.strftime('%H:%M')}–{next_window.strftime('%H:%M')}</span>",
+                font=dict(size=14, color="#94a3b8"),
+            ),
+            gauge=dict(
+                axis=dict(
+                    range=[0, peak],
+                    tickcolor="#1e293b",
+                    tickfont=dict(color="#334155", size=9),
+                    nticks=6,
+                ),
+                bar=dict(color=color, thickness=0.22),
+                bgcolor="#07090c",
+                borderwidth=0,
+                steps=steps,
+                threshold=dict(
+                    line=dict(color="#f87171", width=2),
+                    thickness=0.75,
+                    value=peak * 0.75,
+                ),
+            ),
+        ))
+        fig.update_layout(
+            paper_bgcolor="#0f1318",
+            font=dict(color="#94a3b8"),
+            margin=dict(l=20, r=20, t=60, b=10),
+            height=260,
+        )
+        return fig
+
+    # colour per checkpoint: green / amber / red based on utilisation
+    def _color(load, peak):
+        r = load / max(peak, 1)
+        if r < 0.5:  return "#4ade80"
+        if r < 0.75: return "#fb923c"
+        return "#f87171"
+
+    ci_color   = _color(ci_load,   ci_peak)
+    sec_color  = _color(sec_load,  sec_peak)
+    gate_color = _color(gate_load, gate_peak)
+
+    # ── Summary stat strip ───────────────────────────────────────────────────
+    total_open = open_alerts + open_sec_alerts + open_gate_alerts
+    alert_color = "red" if total_open else "green"
+    alert_tag   = "tag-red" if total_open else "tag-green"
+    alert_txt   = f"{total_open} OPEN" if total_open else "ALL CLEAR"
+    ci_tag   = "tag-red" if ci_load   > ci_peak  * 0.75 else ("tag-amber" if ci_load   > ci_peak  * 0.5 else "tag-green")
+    sec_tag  = "tag-red" if sec_load  > sec_peak * 0.75 else ("tag-amber" if sec_load  > sec_peak * 0.5 else "tag-green")
+    gate_tag = "tag-red" if gate_load > gate_peak* 0.75 else ("tag-amber" if gate_load > gate_peak* 0.5 else "tag-green")
+    ci_lbl   = "HIGH" if ci_load   > ci_peak  * 0.75 else ("MED" if ci_load   > ci_peak  * 0.5 else "LOW")
+    sec_lbl  = "HIGH" if sec_load  > sec_peak * 0.75 else ("MED" if sec_load  > sec_peak * 0.5 else "LOW")
+    gate_lbl = "HIGH" if gate_load > gate_peak* 0.75 else ("MED" if gate_load > gate_peak* 0.5 else "LOW")
+
+    st.markdown(f"""
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="stat-lbl">Current Window</div>
+    <div class="stat-val">{current_window.strftime('%H:%M')} – {next_window.strftime('%H:%M')}</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Check-in Load</div>
+    <div class="stat-val">{ci_load} pax</div>
+    <span class="stat-tag {ci_tag}">{ci_lbl}</span>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Security Load</div>
+    <div class="stat-val">{sec_load} pax</div>
+    <span class="stat-tag {sec_tag}">{sec_lbl}</span>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Gate Load</div>
+    <div class="stat-val">{gate_load} pax</div>
+    <span class="stat-tag {gate_tag}">{gate_lbl}</span>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Open Alerts</div>
+    <div class="stat-val {alert_color}"><span class="stat-tag {alert_tag}">{alert_txt}</span></div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    if checkin_fc.empty and security_fc.empty and gate_fc.empty:
+        st.info("No forecast data yet — load the demo or run a forecast to see live gauges.")
+    else:
+        # ── Three gauges ─────────────────────────────────────────────────────
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            st.plotly_chart(
+                _gauge("CHECK-IN", ci_load, ci_peak, ci_wait, ci_color),
+                use_container_width=True, config={"displayModeBar": False},
+            )
+            st.markdown(f"""
+<div style="text-align:center;margin-top:-10px">
+  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Desks open</div>
+  <div style="font-size:2rem;font-weight:900;color:{ci_color};line-height:1">{current_desks}</div>
+  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{ci_wait} min avg wait</div>
+</div>""", unsafe_allow_html=True)
+
+        with g2:
+            st.plotly_chart(
+                _gauge("SECURITY", sec_load, sec_peak, sec_wait, sec_color),
+                use_container_width=True, config={"displayModeBar": False},
+            )
+            st.markdown(f"""
+<div style="text-align:center;margin-top:-10px">
+  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Lanes open</div>
+  <div style="font-size:2rem;font-weight:900;color:{sec_color};line-height:1">{current_lanes}</div>
+  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{sec_wait} min avg wait</div>
+</div>""", unsafe_allow_html=True)
+
+        with g3:
+            st.plotly_chart(
+                _gauge("GATE / BOARDING", gate_load, gate_peak, gate_wait, gate_color),
+                use_container_width=True, config={"displayModeBar": False},
+            )
+            st.markdown(f"""
+<div style="text-align:center;margin-top:-10px">
+  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Agents deployed</div>
+  <div style="font-size:2rem;font-weight:900;color:{gate_color};line-height:1">{current_agents}</div>
+  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{gate_wait} min avg wait</div>
+</div>""", unsafe_allow_html=True)
+
+        st.divider()
+
+        # ── Next 3 hours forecast mini-table ─────────────────────────────────
+        st.markdown("<div class='sec-label'>Next 6 windows — all checkpoints</div>", unsafe_allow_html=True)
+
+        def _next_windows(df, n=6):
+            if df.empty:
+                return pd.DataFrame()
+            df2 = df.copy()
+            df2["window_start"] = pd.to_datetime(df2["window_start"])
+            df2 = df2[df2["window_start"] >= pd.Timestamp(current_window)]
+            return df2.head(n)
+
+        ci_next   = _next_windows(checkin_fc)
+        sec_next  = _next_windows(security_fc)
+        gate_next = _next_windows(gate_fc)
+
+        if not ci_next.empty:
+            rows = []
+            for i in range(len(ci_next)):
+                ci_row   = ci_next.iloc[i]  if i < len(ci_next)   else None
+                sec_row  = sec_next.iloc[i] if i < len(sec_next)  else None
+                gate_row = gate_next.iloc[i]if i < len(gate_next) else None
+                t = pd.Timestamp(ci_row["window_start"]).strftime("%H:%M") if ci_row is not None else "—"
+                rows.append({
+                    "Window": t,
+                    "Check-in": int(ci_row["predicted_load"])   if ci_row   is not None else 0,
+                    "Security":  int(sec_row["predicted_load"])  if sec_row  is not None else 0,
+                    "Gate":      int(gate_row["predicted_load"]) if gate_row is not None else 0,
+                })
+            mini_df = pd.DataFrame(rows)
+            st.dataframe(mini_df, use_container_width=True, hide_index=True)
+
+        # ── Total today KPIs ─────────────────────────────────────────────────
+        st.divider()
+        st.markdown("<div class='sec-label'>Today's totals</div>", unsafe_allow_html=True)
+        ci_total   = int(checkin_fc["predicted_load"].sum())  if not checkin_fc.empty  else 0
+        sec_total  = int(security_fc["predicted_load"].sum()) if not security_fc.empty else 0
+        gate_total = int(gate_fc["predicted_load"].sum())     if not gate_fc.empty     else 0
+        ci_peak2   = int(checkin_fc["predicted_load"].max())  if not checkin_fc.empty  else 0
+        sec_peak2  = int(security_fc["predicted_load"].max()) if not security_fc.empty else 0
+        gate_peak2 = int(gate_fc["predicted_load"].max())     if not gate_fc.empty     else 0
+        st.markdown(f"""
+<div class="kpi-row">
+  <div class="kpi-box"><div class="kpi-val">{ci_total:,}</div><div class="kpi-lbl">Check-in pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{ci_peak2}</div><div class="kpi-lbl">Check-in peak / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{sec_total:,}</div><div class="kpi-lbl">Security pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{sec_peak2}</div><div class="kpi-lbl">Security peak / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{gate_total:,}</div><div class="kpi-lbl">Gate pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{gate_peak2}</div><div class="kpi-lbl">Gate peak / window</div></div>
+</div>""", unsafe_allow_html=True)
+
+
 # ── Train Model ────────────────────────────────────────────────────────────────
 
-if page == "Train Model":
+elif page == "Train Model":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>

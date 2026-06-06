@@ -1099,7 +1099,7 @@ elif page == "Simulation":
 body{background:#0b0d10;color:#94a3b8;padding:10px;overflow-x:hidden}
 .wrap{display:flex;gap:10px;align-items:flex-start}
 .sim-panel{flex:1;min-width:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26}
-canvas#c{display:block;border-radius:4px;border:1px solid #161c26;width:100%}
+canvas#c{display:block;border-radius:4px;border:1px solid #161c26}
 .btns{display:flex;justify-content:center;gap:6px;margin:8px 0 6px}
 .btn{padding:6px 16px;font-size:11px;border:none;border-radius:4px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
 .btn:active{transform:scale(.97)}
@@ -1413,7 +1413,13 @@ class Pax{
 
 // ── Canvas & desks ────────────────────────────────────────────────────────────
 const canvas=document.getElementById('c');
+const dpr=window.devicePixelRatio||1;
+canvas.width=W*dpr;
+canvas.height=H*dpr;
+canvas.style.width=W+'px';
+canvas.style.height=H+'px';
 const cx=canvas.getContext('2d');
+cx.scale(dpr,dpr);
 
 function initDesks(n){
   desks.length=0;

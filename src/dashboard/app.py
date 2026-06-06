@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import requests
 import plotly.graph_objects as go
+import time
 from datetime import datetime
 
 API_BASE = "http://localhost:8000"
@@ -254,13 +255,13 @@ with st.sidebar:
     <span><b style="color:#e2e8f0">{current_lanes}</b> lanes &nbsp;<b style="color:{sc_col}">{open_sec_alerts}</b> alerts</span>
   </div>
   <div style="display:flex;justify-content:space-between;color:#64748b">
-    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Gate</span>
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Departures</span>
     <span><b style="color:#e2e8f0">{current_agents}</b> agents &nbsp;<b style="color:{ga_col}">{open_gate_alerts}</b> alerts</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-    nav_pages = ["Home", "Train Model", "Check-in", "Alerts", "Security", "Gate", "Simulation", "Settings"]
+    nav_pages = ["Home", "Train Model", "Check-in", "Alerts", "Security", "Arrivals", "Departures", "Simulation", "Settings"]
     if "current_page" not in st.session_state:
         st.session_state["current_page"] = "Home"
     saved_page = st.session_state["current_page"]
@@ -304,39 +305,51 @@ if page == "Home":
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Gather current-window data ───────────────────────────────────────────
-    now = datetime.now()
-    # floor to current 30-min window
-    window_min = 0 if now.minute < 30 else 30
-    current_window = now.replace(minute=window_min, second=0, microsecond=0)
-    next_window    = current_window.replace(minute=window_min + 30) if window_min == 0 else current_window.replace(hour=current_window.hour + 1, minute=0)
-
+    # ── Fetch forecast data ───────────────────────────────────────────────────
     checkin_fc  = fetch_forecast()
     security_fc = fetch_security_forecast()
     gate_fc     = fetch_gate_forecast()
 
-    def _load_now(df: pd.DataFrame):
-        """Returns (load, window_start) for the nearest matching window."""
+    # ── Build sorted window list from check-in forecast ───────────────────────
+    def _sorted_windows(df):
         if df.empty:
-            return 0, current_window
-        df2 = df.copy()
-        df2["window_start"] = pd.to_datetime(df2["window_start"])
-        row = df2[(df2["window_start"].dt.hour == current_window.hour) &
-                  (df2["window_start"].dt.minute == window_min)]
-        if not row.empty:
-            return int(row["predicted_load"].iloc[0]), row["window_start"].iloc[0]
-        df2["_tod"] = df2["window_start"].dt.hour * 60 + df2["window_start"].dt.minute
-        cur_tod = current_window.hour * 60 + window_min
-        df2["_diff"] = (df2["_tod"] - cur_tod).abs()
-        nearest = df2.loc[df2["_diff"].idxmin()]
-        return int(nearest["predicted_load"]), nearest["window_start"]
+            return pd.DataFrame()
+        d = df.copy()
+        d["window_start"] = pd.to_datetime(d["window_start"])
+        d["_tod"] = d["window_start"].dt.hour * 60 + d["window_start"].dt.minute
+        return d.sort_values("_tod").reset_index(drop=True)
+
+    ci_sorted   = _sorted_windows(checkin_fc)
+    sec_sorted  = _sorted_windows(security_fc)
+    gate_sorted = _sorted_windows(gate_fc)
+
+    n_windows = max(len(ci_sorted), 1)
+
+    # ── Auto-advance loop every 5 seconds ────────────────────────────────────
+    if "home_window_idx" not in st.session_state:
+        st.session_state["home_window_idx"] = 0
+        st.session_state["home_last_tick"]  = time.time()
+    else:
+        if time.time() - st.session_state["home_last_tick"] >= 5:
+            st.session_state["home_window_idx"] = (st.session_state["home_window_idx"] + 1) % n_windows
+            st.session_state["home_last_tick"]  = time.time()
+
+    idx = st.session_state["home_window_idx"] % n_windows
+
+    # ── Pull load for the current index ──────────────────────────────────────
+    def _load_at(df_sorted, idx):
+        if df_sorted.empty:
+            return 0, pd.Timestamp.now()
+        i = min(idx, len(df_sorted) - 1)
+        row = df_sorted.iloc[i]
+        return int(row["predicted_load"]), row["window_start"]
 
     def _peak(df: pd.DataFrame) -> int:
         return int(df["predicted_load"].max()) if not df.empty else 1
 
-    ci_load,   ci_win   = _load_now(checkin_fc)
-    sec_load,  sec_win  = _load_now(security_fc)
-    gate_load, gate_win = _load_now(gate_fc)
+    ci_load,   ci_win   = _load_at(ci_sorted,   idx)
+    sec_load,  sec_win  = _load_at(sec_sorted,  idx)
+    gate_load, gate_win = _load_at(gate_sorted, idx)
 
     ci_peak  = max(_peak(checkin_fc),  1)
     sec_peak = max(_peak(security_fc), 1)
@@ -361,7 +374,7 @@ if page == "Home":
 
     def _gauge(title, load, peak, wait_min, color, unit="pax", win=None):
         if win is None:
-            win = current_window
+            win = pd.Timestamp.now()
         win_end = pd.Timestamp(win) + pd.Timedelta(minutes=30)
         pct   = min(load / peak, 1.0) * 100
         steps = [
@@ -503,23 +516,16 @@ if page == "Home":
         # ── Next 3 hours forecast mini-table ─────────────────────────────────
         st.markdown("<div class='sec-label'>Next 6 windows — all checkpoints</div>", unsafe_allow_html=True)
 
-        def _next_windows(df, n=6):
-            if df.empty:
+        # next 6 windows from current index, wrapping around
+        def _next_windows(df_sorted, n=6):
+            if df_sorted.empty:
                 return pd.DataFrame()
-            df2 = df.copy()
-            df2["window_start"] = pd.to_datetime(df2["window_start"])
-            cur_tod = current_window.hour * 60 + window_min
-            df2["_tod"] = df2["window_start"].dt.hour * 60 + df2["window_start"].dt.minute
-            df2 = df2.sort_values("_tod").reset_index(drop=True)
-            # find first window at or after current time-of-day
-            ahead = df2[df2["_tod"] >= cur_tod]
-            if ahead.empty:
-                ahead = df2  # wrap around: all windows are earlier, just show from start
-            return ahead.head(n)
+            indices = [(idx + i) % len(df_sorted) for i in range(n)]
+            return df_sorted.iloc[indices].reset_index(drop=True)
 
-        ci_next   = _next_windows(checkin_fc)
-        sec_next  = _next_windows(security_fc)
-        gate_next = _next_windows(gate_fc)
+        ci_next   = _next_windows(ci_sorted)
+        sec_next  = _next_windows(sec_sorted)
+        gate_next = _next_windows(gate_sorted)
 
         if not ci_next.empty:
             rows = []
@@ -532,7 +538,7 @@ if page == "Home":
                     "Window": t,
                     "Check-in": int(ci_row["predicted_load"])   if ci_row   is not None else 0,
                     "Security":  int(sec_row["predicted_load"])  if sec_row  is not None else 0,
-                    "Gate":      int(gate_row["predicted_load"]) if gate_row is not None else 0,
+                    "Departures": int(gate_row["predicted_load"]) if gate_row is not None else 0,
                 })
             mini_df = pd.DataFrame(rows)
             st.dataframe(mini_df, use_container_width=True, hide_index=True)
@@ -555,6 +561,13 @@ if page == "Home":
   <div class="kpi-box"><div class="kpi-val">{gate_total:,}</div><div class="kpi-lbl">Gate pax today</div></div>
   <div class="kpi-box"><div class="kpi-val">{gate_peak2}</div><div class="kpi-lbl">Gate peak / window</div></div>
 </div>""", unsafe_allow_html=True)
+
+    # ── Auto-advance: sleep remaining time then rerun ─────────────────────────
+    if not checkin_fc.empty or not security_fc.empty or not gate_fc.empty:
+        remaining = 5 - (time.time() - st.session_state["home_last_tick"])
+        if remaining > 0:
+            time.sleep(remaining)
+        st.rerun()
 
 
 # ── Train Model ────────────────────────────────────────────────────────────────
@@ -821,7 +834,7 @@ elif page == "Alerts":
     if "alerts_source_filter" not in st.session_state:
         st.session_state["alerts_source_filter"] = "All"
     f1, f2, f3, f4 = st.columns(4)
-    for col, label in zip([f1, f2, f3, f4], ["All", "Check-in", "Security", "Gate"]):
+    for col, label in zip([f1, f2, f3, f4], ["All", "Check-in", "Security", "Departures"]):
         active = st.session_state["alerts_source_filter"] == label
         with col:
             if st.button(label, use_container_width=True, type="primary" if active else "secondary", key=f"filter_{label}"):
@@ -841,7 +854,7 @@ elif page == "Alerts":
         sec_df["_source"] = "Security"
         sec_df["_ack_endpoint"] = API_BASE + "/security/alerts/" + sec_df["id"].astype(str) + "/acknowledge"
     if not gate_df.empty:
-        gate_df["_source"] = "Gate"
+        gate_df["_source"] = "Departures"
         gate_df["_ack_endpoint"] = API_BASE + "/gate/alerts/" + gate_df["id"].astype(str) + "/acknowledge"
 
     all_combined = pd.concat([ci_df, sec_df, gate_df], ignore_index=True)
@@ -849,7 +862,7 @@ elif page == "Alerts":
     if source_filter != "All" and not all_combined.empty:
         all_combined = all_combined[all_combined["_source"] == source_filter].reset_index(drop=True)
 
-    SOURCE_TAG = {"Check-in": "tag-checkin", "Security": "tag-security", "Gate": "tag-gate"}
+    SOURCE_TAG = {"Check-in": "tag-checkin", "Security": "tag-security", "Departures": "tag-gate"}
 
     def _int(val):
         """Safely convert a possibly-NaN pandas value to int."""
@@ -881,12 +894,14 @@ elif page == "Alerts":
                 card_cls = "alert-close"
                 tag_cls  = "desk-close"
                 n = _int(row.get("desks_to_close")) or _int(row.get("lanes_to_close")) or _int(row.get("agents_to_close"))
-                tag_txt  = f"Close {n} {unit}"
+                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Departures": "agent(s)"}.get(source, "unit(s)")
+                tag_txt = f"Close {n} {unit}"
             else:
                 card_cls = "alert-open"
                 tag_cls  = "desk-open"
                 n = _int(row.get("desks_to_add")) or _int(row.get("lanes_to_add")) or _int(row.get("agents_to_add"))
-                tag_txt  = f"Open {n} more {unit}"
+                unit = {"Check-in": "desk(s)", "Security": "lane(s)", "Departures": "agent(s)"}.get(source, "unit(s)")
+                tag_txt = f"Open {n} more {unit}"
 
             note      = row.get("note") or ""
             note_html = f'<div class="alert-note">📝 {note}</div>' if note else ""
@@ -1991,13 +2006,125 @@ elif page == "Security":
         render_security_alerts(fetch_security_alerts())
 
 
-# ── Gate ───────────────────────────────────────────────────────────────────────
+# ── Arrivals ───────────────────────────────────────────────────────────────────
 
-elif page == "Gate":
+elif page == "Arrivals":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
-  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Gate Boarding Control &nbsp;·&nbsp; Agent Management</div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Arrivals Gate &nbsp;·&nbsp; Ground Crew Management</div>
+</div>
+""", unsafe_allow_html=True)
+
+    arr_resp = fetch_json(f"{API_BASE}/gate/agents")
+    arr_agents = arr_resp["agents_open"] if arr_resp else 0
+
+    ac1, ac2, ac3 = st.columns([2, 1, 3])
+    with ac1:
+        new_arr_count = st.number_input("Ground crew deployed", min_value=0, max_value=20, value=arr_agents, key="arr_agents_input")
+    with ac2:
+        st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+        if st.button("Update", key="update_arr_agents", use_container_width=True):
+            requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_arr_count})
+            st.rerun()
+    with ac3:
+        st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently <b style='color:#4ade80'>{arr_agents}</b> crew deployed at arrivals</div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    arr_fc = fetch_gate_forecast()
+    if not arr_fc.empty:
+        arr_fc["window_start"] = pd.to_datetime(arr_fc["window_start"])
+        peak_arr  = int(arr_fc["predicted_load"].max())
+        total_arr = int(arr_fc["predicted_load"].sum())
+        peak_time = arr_fc.loc[arr_fc["predicted_load"].idxmax(), "window_start"].strftime("%H:%M")
+
+        st.markdown(f"""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{len(arr_fc)}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Arrivals</div><div class="stat-val red">{peak_arr} pax</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_time}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_arr:,}</div></div>
+</div>""", unsafe_allow_html=True)
+
+        fig_arr = go.Figure()
+        fig_arr.add_trace(go.Bar(
+            x=arr_fc["window_start"],
+            y=arr_fc["predicted_load"],
+            name="Arrivals load",
+            marker=dict(
+                color=arr_fc["predicted_load"],
+                colorscale=[[0, "#60a5fa"], [0.5, "#a78bfa"], [1, "#f87171"]],
+                showscale=False,
+            ),
+            hovertemplate="<b>Arrivals %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+        ))
+        fig_arr.update_layout(
+            title=dict(text="ARRIVALS GATE · PASSENGER FLOW · 30-MIN WINDOWS", font=dict(size=10, color="#64748b"), x=0),
+            plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#64748b")),
+            margin=dict(l=10, r=20, t=36, b=10), height=300,
+        )
+        st.plotly_chart(fig_arr, use_container_width=True)
+    else:
+        st.info("No arrival data yet — run the gate forecast to populate arrival windows.")
+
+    st.divider()
+    st.markdown("<div class='sec-label'>Arrival Alerts</div>", unsafe_allow_html=True)
+    arr_open = fetch_gate_alerts("OPEN")
+    arr_ack  = fetch_gate_alerts("ACKNOWLEDGED")
+
+    atab_open, atab_ack, atab_all = st.tabs(["Open", "Acknowledged", "All"])
+
+    def render_arr_alerts(df, show_ack=False):
+        if df.empty:
+            st.markdown("<div style='color:#64748b; padding:16px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts</div>", unsafe_allow_html=True)
+            return
+        for _, row in df.iterrows():
+            status   = row.get("status", "OPEN")
+            load     = row.get("predicted_load", "?")
+            win      = str(row.get("window_start", ""))[:16]
+            n        = row.get("agents_to_add") or row.get("agents_to_close") or 0
+            if status == "ACKNOWLEDGED":
+                card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
+            elif row.get("type", "") == "gate_close":
+                card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Release {n} crew"
+            else:
+                card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Deploy {n} more crew"
+            col_card, col_btn = st.columns([5, 1])
+            with col_card:
+                st.markdown(f"""
+<div class="alert-card {card_cls}">
+  <div class="alert-title">{row['message']}</div>
+  <span class="stat-tag tag-gate">Arrivals</span>&nbsp;
+  <span class="desk-tag {tag_cls}">{tag_txt}</span>
+  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax</div>
+</div>""", unsafe_allow_html=True)
+            with col_btn:
+                if show_ack and status == "OPEN":
+                    st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
+                    emp = st.session_state.get("employee_name", "employee") or "employee"
+                    if st.button("Confirm", key=f"arr_ack_{row['id']}"):
+                        requests.post(f"{API_BASE}/gate/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        st.cache_data.clear()
+                        st.rerun()
+
+    with atab_open:
+        render_arr_alerts(arr_open, show_ack=True)
+    with atab_ack:
+        render_arr_alerts(arr_ack)
+    with atab_all:
+        render_arr_alerts(fetch_gate_alerts())
+
+
+# ── Departures ─────────────────────────────────────────────────────────────────
+
+elif page == "Departures":
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Departures Gate &nbsp;·&nbsp; Boarding Agent Management</div>
 </div>
 """, unsafe_allow_html=True)
 

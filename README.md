@@ -146,6 +146,56 @@ Then visit: **http://localhost:8001** (simulation with live predictions)
 
 ---
 
+## Mobile Employee App
+
+An **Android native app** (Kotlin) for check-in staff to receive **push notifications** when the predictor recommends opening more desks.
+
+### Features
+
+- **Employee Registration** — Create account with employee ID + email
+- **Push Notifications** — Firebase Cloud Messaging alerts
+- **Real-time Dashboard** — Live stats + alert list
+- **Alert Acknowledgement** — Tap to confirm you've opened desks
+- **Offline Support** — Works even if app is in background
+
+### Setup
+
+```bash
+cd mobile
+# 1. Add Firebase credentials → mobile/app/google-services.json
+# 2. Open in Android Studio
+# 3. Run on emulator or device
+```
+
+See [mobile/README.md](mobile/README.md) for detailed setup.
+
+### Push Notification Flow
+
+```
+XGBoost Predicts High Load
+       ↓
+Alert Generated
+       ↓
+Backend sends Firebase Message to all registered employee devices
+       ↓
+Employee receives notification on home screen
+       ↓
+Notification includes: load, recommended desks, time window
+       ↓
+Employee taps notification → opens app → Dashboard
+```
+
+### API Endpoints (Mobile Auth)
+
+| Method | Endpoint | Usage |
+|---|---|---|
+| POST | `/auth/register` | Register: `{employee_id, name, email, password}` |
+| POST | `/auth/login` | Login: `{email, password}` → returns JWT token |
+| POST | `/auth/fcm-token` | Save device token: `{fcm_token}` (on app launch) |
+| GET | `/auth/me` | Verify token + get user info |
+
+---
+
 ## Dashboard Tabs
 
 | Tab | Who uses it | What it does |
@@ -163,6 +213,10 @@ Then visit: **http://localhost:8001** (simulation with live predictions)
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/health` | Health check |
+| POST | `/auth/register` | Register new employee account |
+| POST | `/auth/login` | Login with email/password → JWT token |
+| POST | `/auth/fcm-token` | Register device for push notifications |
+| GET | `/auth/me` | Get current user info |
 | POST | `/data/upload/training` | Upload historical CSV (appends + deduplicates) |
 | POST | `/data/upload/schedule` | Upload upcoming schedule |
 | GET | `/data/training/info` | Training dataset stats |

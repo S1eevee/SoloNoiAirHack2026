@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Check-In Flow Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        canvas {
+            display: block;
+            border: 2px solid #333;
+            background: white;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .stat-value {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Terminal Check-In Flow Simulation</h1>
+        <canvas id="simCanvas" width="1000" height="700"></canvas>
+        
+        <div class="controls">
+            <button id="startBtn">Start</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Passengers in System</div>
+                <div class="stat-value" id="stat-system">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Passengers in Queue</div>
+                <div class="stat-value" id="stat-queue">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Processed</div>
+                <div class="stat-value" id="stat-processed">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">FPS</div>
+                <div class="stat-value" id="stat-fps">60</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const WIDTH = 1000;
+        const HEIGHT = 700;
+        const FPS = 60;
+        const NUM_DESKS = 20;
+        const OPEN_DESKS = 10;
+        const SPAWN_RATE = 30;
+        const CHECK_IN_TIME = 90;
+        const PASSENGER_SPEED = 2.5;
+        const PASSENGER_RADIUS = 5;
+        const QUEUE_SPACING = 15;
+
+        // Colors
+        const WHITE = '#ffffff';
+        const BLACK = '#000000';
+        const GREEN = 'rgb(50, 200, 50)';
+        const RED = 'rgb(200, 50, 50)';
+        const BLUE = 'rgb(50, 100, 200)';
+        const GRAY = 'rgb(200, 200, 200)';
+        const DARK_GRAY = 'rgb(50, 50, 50)';
+
+        // Canvas setup
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Simulation state
+        let running = false;
+        let frameCount = 0;
+        let processedCount = 0;
+        const passengers = [];
+        const desks = [];
+
+        // Desk class
+        class Desk {
+            constructor(index, x, y) {
+                this.index = index;
+                this.x = x;
+                this.y = y;
+                this.width = 30;
+                this.height = 20;
+                this.isOpen = index < OPEN_DESKS;
+                this.queue = [];
+            }
+
+            draw(ctx) {
+                const color = this.isOpen ? GREEN : RED;
+                ctx.fillStyle = color;
+                ctx.fillRect(
+                    this.x - this.width / 2,
+                    this.y - this.height / 2,
+                    this.width,
+                    this.height
+                );
+            }
+        }
+
+        // Passenger class
+        class Passenger {
+            constructor(startX, startY) {
+                this.x = startX;
+                this.y = startY;
+                this.targetDesk = null;
+                this.state = 'APPROACHING'; // APPROACHING, CHECKING_IN, DETOURING, EXITING
+                this.checkInTimer = 0;
+                this.waypoints = [];
+            }
+
+            assignDesk(desks) {
+                const openDesks = desks.filter(d => d.isOpen);
+                this.targetDesk = openDesks.reduce((min, d) =>
+                    d.queue.length < min.queue.length ? d : min
+                );
+                this.targetDesk.queue.push(this);
+            }
+
+            update() {
+                if (this.state === 'APPROACHING') {
+                    try {
+                        const queueIndex = this.targetDesk.queue.indexOf(this);
+                        const targetX = this.targetDesk.x;
+                        const targetY = this.targetDesk.y + 25 + (queueIndex * QUEUE_SPACING);
+
+                        this._moveTowards(targetX, targetY);
+
+                        if (queueIndex === 0 && this.x === targetX && this.y === targetY) {
+                            this.state = 'CHECKING_IN';
+                        }
+                    } catch (e) {
+                        // Silently handle if removed from queue
+                    }
+                } else if (this.state === 'CHECKING_IN') {
+                    this.checkInTimer++;
+                    if (this.checkInTimer >= CHECK_IN_TIME) {
+                        this.targetDesk.queue.shift();
+                        this.state = 'DETOURING';
+                        this.waypoints = [
+                            [this.targetDesk.x + 25, this.targetDesk.y],
+                            [this.targetDesk.x + 25, 100]
+                        ];
+                    }
+                } else if (this.state === 'DETOURING') {
+                    if (this.waypoints.length > 0) {
+                        const [tx, ty] = this.waypoints[0];
+                        if (this._moveTowards(tx, ty)) {
+                            this.waypoints.shift();
+                        }
+                    } else {
+                        this.state = 'EXITING';
+                    }
+                } else if (this.state === 'EXITING') {
+                    this.y -= PASSENGER_SPEED;
+                    if (this.y < 0) {
+                        processedCount++;
+                    }
+                }
+            }
+
+            _moveTowards(tx, ty) {
+                const dx = tx - this.x;
+                const dy = ty - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > PASSENGER_SPEED) {
+                    this.x += (dx / dist) * PASSENGER_SPEED;
+                    this.y += (dy / dist) * PASSENGER_SPEED;
+                    return false;
+                } else {
+                    this.x = tx;
+                    this.y = ty;
+                    return true;
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = BLUE;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, PASSENGER_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize desks
+        function initDesks() {
+            desks.length = 0;
+            const startX = 45;
+            const spacing = 48;
+            for (let i = 0; i < NUM_DESKS; i++) {
+                desks.push(new Desk(i, startX + i * spacing, HEIGHT / 2));
+            }
+        }
+
+        // Main update loop
+        function update() {
+            if (!running) return;
+
+            frameCount++;
+            
+            // Spawn passengers
+            if (frameCount % SPAWN_RATE === 0) {
+                const p = new Passenger(WIDTH / 2, HEIGHT - 20);
+                p.assignDesk(desks);
+                passengers.push(p);
+            }
+
+            // Update passengers
+            for (let i = passengers.length - 1; i >= 0; i--) {
+                passengers[i].update();
+                if (passengers[i].y < 0) {
+                    passengers.splice(i, 1);
+                }
+            }
+        }
+
+        // Rendering function
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = WHITE;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Draw escalator area
+            ctx.fillStyle = GRAY;
+            ctx.fillRect(0, 0, WIDTH, 80);
+            
+            ctx.fillStyle = BLACK;
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('ESCALATOR TO SECURITY', WIDTH / 2, 50);
+
+            // Draw entrance area
+            ctx.fillStyle = DARK_GRAY;
+            ctx.fillRect(WIDTH / 2 - 60, HEIGHT - 30, 120, 30);
+
+            // Draw desks
+            for (const desk of desks) {
+                desk.draw(ctx);
+            }
+
+            // Draw passengers
+            for (const passenger of passengers) {
+                passenger.draw(ctx);
+            }
+
+            // Update statistics
+            const queueCount = desks.reduce((sum, d) => sum + d.queue.length, 0);
+            document.getElementById('stat-system').textContent = passengers.length;
+            document.getElementById('stat-queue').textContent = queueCount;
+            document.getElementById('stat-processed').textContent = processedCount;
+        }
+
+        // Animation loop
+        let lastTime = Date.now();
+        let fps = 60;
+
+        function animate() {
+            update();
+            draw();
+
+            // Calculate FPS
+            const now = Date.now();
+            const delta = now - lastTime;
+            fps = Math.round(1000 / delta);
+            document.getElementById('stat-fps').textContent = fps;
+            lastTime = now;
+
+            requestAnimationFrame(animate);
+        }
+
+        // UI Controls
+        document.getElementById('startBtn').addEventListener('click', () => {
+            running = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            running = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            running = false;
+            frameCount = 0;
+            processedCount = 0;
+            passengers.length = 0;
+            initDesks();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            draw();
+        });
+
+        // Initialize and start
+        initDesks();
+        draw();
+        animate();
+    </script>
+</body>
+</html>

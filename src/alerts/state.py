@@ -142,15 +142,17 @@ def save_alerts(alerts: list[dict]) -> list[int]:
 
 
 def get_alerts(status: str | None = None) -> list[dict]:
+    """Return only check-in zone alerts (zone='checkin' or zone IS NULL)."""
     init_db()
     with _connect() as conn:
         if status:
             rows = conn.execute(
-                "SELECT * FROM alerts WHERE status = ? ORDER BY created_at DESC", (status,)
+                "SELECT * FROM alerts WHERE (zone = 'checkin' OR zone IS NULL) AND status = ? ORDER BY created_at DESC",
+                (status,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM alerts ORDER BY created_at DESC"
+                "SELECT * FROM alerts WHERE zone = 'checkin' OR zone IS NULL ORDER BY created_at DESC"
             ).fetchall()
     return [dict(r) for r in rows]
 

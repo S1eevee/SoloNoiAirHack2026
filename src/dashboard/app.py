@@ -842,22 +842,40 @@ elif page == "Alerts":
                 st.rerun()
     source_filter = st.session_state["alerts_source_filter"]
 
-    # Fetch all three alert sources and tag them
-    ci_df  = fetch_alerts()
-    sec_df = fetch_security_alerts()
+    # Fetch all three alert sources and combine
+    ci_df   = fetch_alerts()
+    sec_df  = fetch_security_alerts()
     gate_df = fetch_gate_alerts()
 
-    if not ci_df.empty:
-        ci_df["_source"] = "Check-in"
-        ci_df["_ack_endpoint"] = API_BASE + "/alerts/" + ci_df["id"].astype(str) + "/acknowledge"
-    if not sec_df.empty:
-        sec_df["_source"] = "Security"
-        sec_df["_ack_endpoint"] = API_BASE + "/security/alerts/" + sec_df["id"].astype(str) + "/acknowledge"
-    if not gate_df.empty:
-        gate_df["_source"] = "Departures"
-        gate_df["_ack_endpoint"] = API_BASE + "/gate/alerts/" + gate_df["id"].astype(str) + "/acknowledge"
-
     all_combined = pd.concat([ci_df, sec_df, gate_df], ignore_index=True)
+
+    def _classify_source(row) -> str:
+        """Derive zone from zone column, then fall back to message keyword scan."""
+        zone = str(row.get("zone", "") or "").lower()
+        if zone == "gate":
+            return "Gate"
+        if zone == "security":
+            return "Security"
+        if zone in ("checkin", ""):
+            msg = str(row.get("message", "") or "").upper()
+            if "GATE" in msg:
+                return "Gate"
+            if "SECURITY" in msg:
+                return "Security"
+        return "Check-in"
+
+    def _ack_endpoint(row) -> str:
+        src = row["_source"]
+        aid = row["id"]
+        if src == "Gate":
+            return f"{API_BASE}/gate/alerts/{aid}/acknowledge"
+        if src == "Security":
+            return f"{API_BASE}/security/alerts/{aid}/acknowledge"
+        return f"{API_BASE}/alerts/{aid}/acknowledge"
+
+    if not all_combined.empty:
+        all_combined["_source"] = all_combined.apply(_classify_source, axis=1)
+        all_combined["_ack_endpoint"] = all_combined.apply(_ack_endpoint, axis=1)
 
     if source_filter != "All" and not all_combined.empty:
         all_combined = all_combined[all_combined["_source"] == source_filter].reset_index(drop=True)

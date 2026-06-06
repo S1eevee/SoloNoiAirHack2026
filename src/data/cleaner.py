@@ -66,9 +66,9 @@ def _normalize_to_internal(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
 
     # --- departures ---
-    dep_flight = _find_col(df, "dep_flight", "departure_flight", "dep_flt", "flight_dep")
+    dep_flight = _find_col(df, "dep_flight", "departure_flight", "dep_flt", "flight_dep", "flt dep", "flt_dep")
     dep_time   = _find_col(df, "dep_time", "departure_time", "dep_sched", "etd", "std")
-    dep_pax    = _find_col(df, "dep_pax", "departure_pax", "pax_dep", "dep_passengers")
+    dep_pax    = _find_col(df, "dep_pax", "departure_pax", "pax_dep", "dep_passengers", "pax")
 
     if dep_flight:
         dep = df[df[dep_flight].notna()].copy()
@@ -78,9 +78,9 @@ def _normalize_to_internal(df: pd.DataFrame) -> pd.DataFrame:
         rows.append(dep[["flight_id", "scheduled_time", "pax_count"]])
 
     # --- arrivals ---
-    arr_flight = _find_col(df, "arr_flight", "arrival_flight", "arr_flt", "flight_arr")
+    arr_flight = _find_col(df, "arr_flight", "arrival_flight", "arr_flt", "flight_arr", "flt arr", "flt_arr")
     arr_time   = _find_col(df, "arr_time", "arrival_time", "arr_sched", "eta", "sta")
-    arr_pax    = _find_col(df, "arr_pax", "arrival_pax", "pax_arr", "arr_passengers")
+    arr_pax    = _find_col(df, "arr_pax", "arrival_pax", "pax_arr", "arr_passengers", "pax")
 
     if arr_flight:
         arr = df[df[arr_flight].notna()].copy()
@@ -88,6 +88,28 @@ def _normalize_to_internal(df: pd.DataFrame) -> pd.DataFrame:
         arr["scheduled_time"] = _parse_time_column(arr[arr_time]) if arr_time else pd.NaT
         arr["pax_count"]      = pd.to_numeric(arr[arr_pax], errors="coerce").fillna(150) if arr_pax else 150
         rows.append(arr[["flight_id", "scheduled_time", "pax_count"]])
+
+    # --- fallback: single flight-id column + type/direction discriminator ---
+    # handles formats like Romanian airport exports: "numar zbor", "ora", "type"
+    if not rows:
+        flight_col = _find_col(df, "numar zbor", "numar_zbor", "zbor", "flight_number", "flight no", "flight")
+        time_col   = _find_col(df, "ora", "time", "scheduled", "hour")
+        type_col   = _find_col(df, "type", "tip", "direction", "dir")
+        pax_col    = _find_col(df, "pax", "pasageri", "passengers")
+
+        if flight_col:
+            sub = df[df[flight_col].notna()].copy()
+            sub["flight_id"]      = sub[flight_col].astype(str)
+            sub["scheduled_time"] = _parse_time_column(sub[time_col]) if time_col else pd.NaT
+            sub["pax_count"]      = pd.to_numeric(sub[pax_col], errors="coerce").fillna(150) if pax_col else 150
+
+            if type_col:
+                # arrivals: type value contains 'a', 'arr', 'sosir' (Romanian)
+                arr_mask = sub[type_col].astype(str).str.lower().str.contains(r"arr|sosi|^a$", regex=True, na=False)
+                sub.loc[~arr_mask, "flight_id"] = sub.loc[~arr_mask, "flight_id"]
+                sub.loc[arr_mask,  "flight_id"] = sub.loc[arr_mask,  "flight_id"] + "_ARR"
+
+            rows.append(sub[["flight_id", "scheduled_time", "pax_count"]])
 
     if not rows:
         raise ValueError(
@@ -124,6 +146,6 @@ def clean_flights(df: pd.DataFrame) -> pd.DataFrame:
     df["checkin_desks"]  = pd.to_numeric(df["checkin_desks"], errors="coerce").fillna(1).clip(lower=1).astype(int)
     df["effective_time"] = df["scheduled_time"] + pd.to_timedelta(df["delay_min"], unit="m")
 
-    df = df.drop_duplicates(subset=["flight_id"])
+    df = df.drop_duplicates(subset=["flight_id", "scheduled_time"])
     df = df.sort_values("scheduled_time").reset_index(drop=True)
     return df

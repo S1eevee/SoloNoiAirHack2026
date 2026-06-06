@@ -7,6 +7,7 @@ from src.api.routes.alerts import router as alerts_router
 from src.api.routes.thresholds import router as thresholds_router
 from src.api.routes.insights import router as insights_router
 from src.api.routes.auth import router as auth_router
+from src.api.routes.demo import router as demo_router
 
 try:
     from src.api.routes.sensor import router as sensor_router
@@ -33,6 +34,7 @@ app.include_router(forecast_router)
 app.include_router(alerts_router)
 app.include_router(thresholds_router)
 app.include_router(insights_router)
+app.include_router(demo_router)
 if _sensor_available:
     app.include_router(sensor_router)
 

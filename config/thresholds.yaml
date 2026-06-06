@@ -1,24 +1,22 @@
-checkin:
-  # passenger load thresholds per 30-min window
-  level_1:
-    threshold: 150
-    desks_to_open: 1
-    message: "Open 1 extra check-in desk"
-  level_2:
-    threshold: 300
-    desks_to_open: 2
-    message: "Open 2 extra check-in desks"
-  level_3:
-    threshold: 500
-    desks_to_open: 4
-    message: "Open 4 extra check-in desks — HIGH LOAD"
-
-peak_hours:
-  - 6
-  - 7
-  - 8
-  - 17
-  - 18
-  - 19
-
 alert_cooldown_minutes: 30
+checkin:
+  baseline_desks: 1
+  level_1:
+    desks_to_open: 2
+    message: Open 2 check-in desk(s)
+    threshold: 75
+  level_2:
+    desks_to_open: 3
+    message: Open 3 check-in desks
+    threshold: 125
+  level_3:
+    desks_to_open: 4
+    message: "Open 4 check-in desks \u2014 HIGH LOAD"
+    threshold: 200
+peak_hours:
+- 6
+- 7
+- 8
+- 17
+- 18
+- 19

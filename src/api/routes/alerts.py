@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from src.alerts.state import get_alerts, acknowledge_alert, resolve_alert, init_db
+from src.alerts.state import get_alerts, acknowledge_alert, resolve_alert, init_db, get_desks_open, set_desks_open
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -12,6 +12,21 @@ init_db()
 
 class AcknowledgeRequest(BaseModel):
     employee: Optional[str] = "employee"
+
+
+class DeskStateRequest(BaseModel):
+    desks_open: int
+
+
+@router.get("/desks")
+async def get_desk_state():
+    return {"desks_open": get_desks_open()}
+
+
+@router.post("/desks")
+async def update_desk_state(body: DeskStateRequest):
+    set_desks_open(body.desks_open)
+    return {"desks_open": body.desks_open}
 
 
 @router.get("")

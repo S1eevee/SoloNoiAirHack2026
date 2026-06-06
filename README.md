@@ -18,6 +18,8 @@
 
 ## Architecture
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full component diagram.
+
 ```
 Flight CSV (historical)
         │
@@ -72,27 +74,36 @@ src/dashboard/app.py        src/llm/insights.py
 
 ## Quick Start
 
-### 1. Clone and install
+### 1. Clone and set up environment
 ```bash
 git clone https://github.com/S1eevee/SoloNoiAirHack2026.git
 cd SoloNoiAirHack2026
-pip3 install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-### 2. Start the API (Terminal 1)
+### 2. Configure environment variables (optional)
 ```bash
-python3 -m uvicorn src.api.app:app --reload --port 8000
+export ANTHROPIC_API_KEY="sk-ant-..."   # required only for AI Insights tab
+export ALERT_DB_PATH="./data/processed/alerts.db"   # default shown
+export MODEL_PATH="./models/model.pkl"               # default shown
 ```
 
-### 3. Start the dashboard (Terminal 2)
+### 3. Start the API (Terminal 1)
 ```bash
-python3 -m streamlit run src/dashboard/app.py
+python -m uvicorn src.api.app:app --reload --port 8000
 ```
 
-### 4. Open the dashboard
+### 4. Start the dashboard (Terminal 2)
+```bash
+python -m streamlit run src/dashboard/app.py
+```
+
+### 5. Open the dashboard
 Go to **http://localhost:8501**
 
-### 5. Load data and run
+### 6. Load data and run
 1. **Train Model tab** → upload historical flight CSV → click **Train Model**
 2. **Forecast tab** → upload tomorrow's schedule → click **Run Forecast & Generate Alerts**
 3. **Alerts tab** → employees see and acknowledge check-in desk alerts
@@ -253,12 +264,14 @@ The system accepts any airport CSV with flight data. Supported column names:
 
 | Data | Accepted column names |
 |---|---|
-| Departure flight ID | `dep_flight`, `departure_flight`, `flight_id` |
+| Departure flight ID | `dep_flight`, `departure_flight`, `flt dep`, `flight_id` |
 | Departure time | `dep_time`, `departure_time`, `scheduled_time`, `etd`, `std` |
-| Departure pax | `dep_pax`, `departure_pax`, `pax_count` |
-| Arrival flight ID | `arr_flight`, `arrival_flight` |
+| Departure pax | `dep_pax`, `departure_pax`, `pax_count`, `pax` |
+| Arrival flight ID | `arr_flight`, `arrival_flight`, `flt arr` |
 | Arrival time | `arr_time`, `arrival_time`, `eta`, `sta` |
-| Arrival pax | `arr_pax`, `arrival_pax` |
+| Arrival pax | `arr_pax`, `arrival_pax`, `pax` |
+| Flight number (combined) | `numar zbor`, `flight_number`, `flight` |
+| Time (combined) | `ora`, `time`, `scheduled` |
 
 Supported time formats: `2026-06-06 14:30:00`, `14:30`, `14:30/06`, `23:50/31`  
 Supported delimiters: comma, semicolon, tab, pipe (auto-detected)
@@ -302,17 +315,16 @@ To use Claude: enter your API key in the sidebar (console.anthropic.com) or set 
 ```
 SoloNoiAirHack2026/
 ├── config/
-│   ├── thresholds.yaml        # alert thresholds (editable via UI)
-│   └── SKILL.md
+│   └── thresholds.yaml        # alert thresholds (editable via UI)
 ├── data/
 │   ├── processed/             # auto-generated, git-ignored
 │   │   ├── training_data.csv  # accumulated historical flights
-│   │   ├── uploaded_schedule.csv  # upcoming schedule
+│   │   ├── training_manifest.json  # list of uploaded training files
+│   │   ├── uploaded_schedule.csv   # upcoming schedule
 │   │   └── alerts.db          # SQLite alert store
 │   ├── raw/                   # drop raw files here
-│   ├── sample/
-│   │   └── sample_flights.csv # 38-flight demo CSV
-│   └── SKILL.md
+│   └── sample/
+│       └── sample_flights.csv # 38-flight demo CSV
 ├── models/
 │   └── model.pkl              # trained XGBoost (git-ignored, regenerated locally)
 ├── src/
@@ -364,6 +376,24 @@ SoloNoiAirHack2026/
 | `time_of_day` | Continuous: hour + minute/60 |
 
 **Training data recommendation:** 2–4 weeks minimum, ideally from the target airport. More data = more variance in predictions = better alerts.
+
+---
+
+## Troubleshooting
+
+- **Upload fails with column error** — check that your CSV has recognisable flight number and time columns (see Input CSV Format above)
+- **uvicorn not found** — always use `python -m uvicorn`, not bare `uvicorn`
+- **Flat predictions after training** — model was trained on too little data; upload at least 2 weeks of flights
+- **AI Insights returns auto-summary** — no API key set; enter it in the sidebar or set `ANTHROPIC_API_KEY`
+- **API unreachable from dashboard** — make sure the FastAPI server is running on port 8000 before starting Streamlit
+
+---
+
+## Security
+
+- Never commit your `ANTHROPIC_API_KEY` to Git — use environment variables or enter it via the dashboard sidebar
+- `data/processed/` and `models/` are git-ignored by default; keep it that way
+- For production deployment, restrict the FastAPI CORS origins and run behind a reverse proxy
 
 ---
 

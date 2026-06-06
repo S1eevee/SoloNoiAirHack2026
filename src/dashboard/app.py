@@ -256,7 +256,7 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-    nav_pages = ["Home", "Train Model", "Forecast", "Alerts", "Security", "Gate", "Simulation", "Settings"]
+    nav_pages = ["Home", "Train Model", "Check-in", "Alerts", "Security", "Gate", "Simulation", "Settings"]
     if "current_page" not in st.session_state:
         st.session_state["current_page"] = "Home"
     saved_page = st.session_state["current_page"]
@@ -282,7 +282,7 @@ with st.sidebar:
                 d = r.json()
                 st.success(f"Demo ready · {d['windows_predicted']} windows · {d['alerts_generated']} alerts")
                 st.cache_data.clear()
-                st.session_state["current_page"] = "Forecast"
+                st.session_state["current_page"] = "Check-in"
                 st.rerun()
             else:
                 st.error(f"Demo failed: {r.text}")
@@ -619,9 +619,9 @@ elif page == "Train Model":
             st.error(f"Training failed: {r.text}")
 
 
-# ── Forecast ───────────────────────────────────────────────────────────────────
+# ── Check-in ───────────────────────────────────────────────────────────────────
 
-elif page == "Forecast":
+elif page == "Check-in":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>

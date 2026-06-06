@@ -128,10 +128,11 @@ with st.sidebar:
     st.caption("Iași International Airport · IAS")
     st.divider()
 
-    online = api_online()
-    desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
-    current_desks = desk_resp["desks_open"] if desk_resp else 0
-    open_alerts = len(fetch_alerts("OPEN"))
+    sidebar_status = fetch_json(f"{API_BASE}/alerts/status")
+    online        = sidebar_status is not None
+    current_desks = sidebar_status["desks_open"] if sidebar_status else 0
+    open_alerts   = sidebar_status["open_alert_count"] if sidebar_status else 0
+    demo_active   = sidebar_status["demo_active"] if sidebar_status else False
 
     status_dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     status_txt = "API online" if online else "API offline"
@@ -154,8 +155,6 @@ with st.sidebar:
     st.session_state["current_page"] = page
 
     st.divider()
-    demo_status = fetch_json(f"{API_BASE}/demo/status")
-    demo_active = demo_status.get("demo_active", False) if demo_status else False
     if demo_active:
         if st.button("✕ Unload Demo", use_container_width=True, help="Clear demo data and return to a clean state"):
             r = requests.post(f"{API_BASE}/demo/unload", timeout=30)
@@ -464,12 +463,13 @@ elif page == "Alerts":
                         st.cache_data.clear()
                         st.rerun()
 
+    all_alerts = fetch_alerts()
     with tab_open:
-        render_alerts(fetch_alerts("OPEN"), show_ack=True)
+        render_alerts(all_alerts[all_alerts["status"] == "OPEN"] if not all_alerts.empty else all_alerts, show_ack=True)
     with tab_ack:
-        render_alerts(fetch_alerts("ACKNOWLEDGED"))
+        render_alerts(all_alerts[all_alerts["status"] == "ACKNOWLEDGED"] if not all_alerts.empty else all_alerts)
     with tab_all:
-        render_alerts(fetch_alerts())
+        render_alerts(all_alerts)
 
 
 # ── Simulation ─────────────────────────────────────────────────────────────────

@@ -16,62 +16,100 @@ st.set_page_config(
 # ── Global styles ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+/* page background */
+[data-testid="stAppViewContainer"] { background: #0b0d10; }
+[data-testid="stHeader"] { background: transparent !important; }
+.main .block-container { padding-top: 0 !important; padding-bottom: 2rem; max-width: 1200px; }
+
 /* sidebar */
 [data-testid="stSidebar"] {
-    background: #0f1117;
+    background: #07090c !important;
+    border-right: 1px solid #161c26;
 }
-[data-testid="stSidebar"] * {
-    color: #e0e0e0 !important;
-}
+[data-testid="stSidebar"] * { color: #64748b !important; }
 [data-testid="stSidebar"] .stRadio label {
-    font-size: 0.95rem;
-    padding: 4px 0;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    padding: 7px 0 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    border-radius: 4px;
+}
+[data-testid="stSidebar"] [data-baseweb="radio"] input:checked + div { color: #4ade80 !important; }
+[data-testid="stSidebar"] hr { border-color: #161c26 !important; }
+
+/* IAS hero */
+.ias-hero { padding: 24px 0 18px; margin-bottom: 6px; }
+.ias-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+.ias-code { font-size: 3.8rem; font-weight: 900; color: #4ade80; line-height: 1; letter-spacing: -0.03em; }
+.ias-title { font-size: 1.5rem; font-weight: 700; color: #e2e8f0; }
+.ias-sub { font-size: 0.72rem; font-weight: 600; color: #334155; text-transform: uppercase; letter-spacing: 0.14em; }
+
+/* page section label */
+.sec-label {
+    font-size: 9px; font-weight: 700; color: #334155;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    margin-bottom: 10px; margin-top: 20px;
 }
 
-/* page background */
-.main .block-container { padding-top: 1.5rem; }
+/* stat strip — top of each page */
+.stat-strip {
+    display: flex; gap: 0;
+    background: #0f1318; border: 1px solid #161c26;
+    border-radius: 5px; margin-bottom: 20px; overflow: hidden;
+}
+.stat-cell {
+    flex: 1; padding: 11px 14px;
+    border-right: 1px solid #161c26;
+    min-width: 0;
+}
+.stat-cell:last-child { border-right: none; }
+.stat-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #334155; margin-bottom: 5px; white-space: nowrap; }
+.stat-val { font-size: 1rem; font-weight: 800; color: #e2e8f0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-val.green { color: #4ade80; }
+.stat-val.amber { color: #fb923c; }
+.stat-val.red   { color: #f87171; }
+.stat-tag { display:inline-block; padding:2px 8px; border-radius:3px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-top:4px; }
+.tag-green { background:#4ade8018; color:#4ade80; border:1px solid #4ade8030; }
+.tag-amber { background:#fb923c18; color:#fb923c; border:1px solid #fb923c30; }
+.tag-red   { background:#f8717118; color:#f87171; border:1px solid #f8717130; }
+.tag-blue  { background:#60a5fa18; color:#60a5fa; border:1px solid #60a5fa30; }
+
+/* KPI row */
+.kpi-row { display: flex; gap: 1px; margin-bottom: 16px; background: #161c26; border-radius: 5px; overflow: hidden; border: 1px solid #161c26; }
+.kpi-box { flex: 1; background: #0f1318; padding: 14px 16px; }
+.kpi-box.hl { background: #0b1a10; }
+.kpi-val { font-size: 1.55rem; font-weight: 800; color: #e2e8f0; line-height: 1.1; }
+.kpi-val.green { color: #4ade80; }
+.kpi-lbl { font-size: 8px; font-weight: 700; color: #334155; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.12em; }
 
 /* alert cards */
 .alert-card {
-    border-radius: 8px;
-    padding: 14px 18px;
-    margin-bottom: 10px;
-    border-left: 5px solid #ccc;
-    background: #1e2130;
-    color: #e0e0e0;
+    border-radius: 4px; padding: 12px 14px; margin-bottom: 8px;
+    background: #0f1318; color: #c8d5e5;
+    border: 1px solid #161c26; border-left: 3px solid #334155;
 }
-.alert-open  { border-left-color: #e05252; background: #1e1414; }
-.alert-close { border-left-color: #52c07a; background: #131e18; }
-.alert-ack   { border-left-color: #f0a500; background: #1e1a0e; }
-.alert-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
-.alert-sub   { font-size: 0.85rem; opacity: 0.75; margin-top: 4px; }
+.alert-open  { border-left-color: #f87171; background: #110c0c; border-color: #1e1010; border-left-color: #f87171; }
+.alert-close { border-left-color: #4ade80; background: #090f0b; border-color: #101e13; border-left-color: #4ade80; }
+.alert-ack   { border-left-color: #fb923c; background: #0f0e09; border-color: #1c180a; border-left-color: #fb923c; }
+.alert-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 5px; color: #e2e8f0; }
+.alert-sub   { font-size: 0.76rem; color: #334155; margin-top: 4px; }
 .desk-tag {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-top: 6px;
+    display: inline-block; padding: 2px 8px; border-radius: 3px;
+    font-size: 0.68rem; font-weight: 700; margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.06em;
 }
-.desk-open  { background: #e0525240; color: #ff8080; }
-.desk-close { background: #52c07a40; color: #80ffaa; }
-.desk-ok    { background: #52805240; color: #80c080; }
+.desk-open  { background: #f8717118; color: #f87171; border: 1px solid #f8717130; }
+.desk-close { background: #4ade8018; color: #4ade80; border: 1px solid #4ade8030; }
+.desk-ok    { background: #fb923c18; color: #fb923c; border: 1px solid #fb923c30; }
 
-/* metric row */
-.kpi-row { display: flex; gap: 16px; margin-bottom: 1rem; }
-.kpi-box {
-    flex: 1;
-    background: #1e2130;
-    border-radius: 8px;
-    padding: 16px 20px;
-    text-align: center;
-}
-.kpi-val { font-size: 1.8rem; font-weight: 700; color: #fff; }
-.kpi-lbl { font-size: 0.78rem; color: #888; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+/* sidebar status pills */
+.dot-green { color: #4ade80; font-size: 0.65rem; }
+.dot-red   { color: #f87171; font-size: 0.65rem; }
 
-/* status dot */
-.dot-green { color: #52c07a; font-size: 0.7rem; }
-.dot-red   { color: #e05252; font-size: 0.7rem; }
+/* hide streamlit branding */
+#MainMenu { visibility: hidden; }
+footer    { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -169,10 +207,12 @@ def api_online() -> bool:
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## SoloNoi")
-    st.markdown("**Passenger Flow Predictor**")
-    st.caption("Iași International Airport · IAS")
-    st.divider()
+    st.markdown("""
+<div style="padding:18px 0 12px">
+  <div style="font-size:1.05rem;font-weight:900;color:#4ade80;letter-spacing:-0.01em">✈ SOLONOI</div>
+  <div style="font-size:0.68rem;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">Passenger Flow · IAS</div>
+</div>
+""", unsafe_allow_html=True)
 
     online = api_online()
     desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
@@ -187,32 +227,36 @@ with st.sidebar:
     demo_status = fetch_json(f"{API_BASE}/demo/status")
     demo_active = demo_status.get("demo_active", False) if demo_status else False
 
-    status_dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
-    status_txt = "API online" if online else "API offline"
-    st.markdown(f"{status_dot} {status_txt}", unsafe_allow_html=True)
-    st.markdown(f"**{current_desks}** desk(s) &nbsp;·&nbsp; **{open_alerts}** check-in alert(s)", unsafe_allow_html=True)
-    st.markdown(f"**{current_lanes}** lane(s) &nbsp;·&nbsp; **{open_sec_alerts}** security alert(s)", unsafe_allow_html=True)
-    st.markdown(f"**{current_agents}** agent(s) &nbsp;·&nbsp; **{open_gate_alerts}** gate alert(s)", unsafe_allow_html=True)
-    st.divider()
+    dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
+    api_txt = "API ONLINE" if online else "API OFFLINE"
+    ca_col  = "#f87171" if open_alerts     else "#334155"
+    sc_col  = "#f87171" if open_sec_alerts else "#334155"
+    ga_col  = "#f87171" if open_gate_alerts else "#334155"
+    st.markdown(f"""
+<div style="background:#0f1318;border:1px solid #161c26;border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:0.72rem">
+  <div style="margin-bottom:7px">{dot} <span style="color:#64748b;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{api_txt}</span></div>
+  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:4px">
+    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Check-in</span>
+    <span><b style="color:#e2e8f0">{current_desks}</b> desks &nbsp;<b style="color:{ca_col}">{open_alerts}</b> alerts</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:4px">
+    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Security</span>
+    <span><b style="color:#e2e8f0">{current_lanes}</b> lanes &nbsp;<b style="color:{sc_col}">{open_sec_alerts}</b> alerts</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;color:#64748b">
+    <span style="color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.65rem">Gate</span>
+    <span><b style="color:#e2e8f0">{current_agents}</b> agents &nbsp;<b style="color:{ga_col}">{open_gate_alerts}</b> alerts</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-    nav_options = {
-        "Train Model": "Train Model",
-        "Forecast": "Forecast",
-        f"Alerts ({open_alerts} open)" if open_alerts else "Alerts": "Alerts",
-        f"Security ({open_sec_alerts} open)" if open_sec_alerts else "Security": "Security",
-        f"Gate ({open_gate_alerts} open)" if open_gate_alerts else "Gate": "Gate",
-        "Simulation": "Simulation",
-        "Settings": "Settings",
-    }
-    nav_keys = list(nav_options.keys())
-    nav_vals  = list(nav_options.values())
-    saved_page = st.session_state.get("current_page", "Train Model")
-    nav_index  = nav_vals.index(saved_page) if saved_page in nav_vals else 0
-    page_raw = st.radio("Navigation", nav_keys, index=nav_index, label_visibility="collapsed")
-    page = nav_options[page_raw]
+    nav_pages = ["Train Model", "Forecast", "Alerts", "Security", "Gate", "Simulation", "Settings"]
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "Train Model"
+    saved_page = st.session_state["current_page"]
+    nav_index  = nav_pages.index(saved_page) if saved_page in nav_pages else 0
+    page = st.radio("Navigation", nav_pages, index=nav_index, key="nav_radio", label_visibility="collapsed")
     st.session_state["current_page"] = page
-    if open_alerts and page == "Alerts":
-        st.caption(f"⚠ {open_alerts} open alert(s)")
 
     st.divider()
     if demo_active:
@@ -237,19 +281,31 @@ with st.sidebar:
             else:
                 st.error(f"Demo failed: {r.text}")
     st.divider()
-    st.caption(f"Today · {datetime.now().strftime('%d %b %Y')}")
+    st.markdown(f"<div style='font-size:0.68rem;color:#1e2a3a;text-transform:uppercase;letter-spacing:0.1em'>{datetime.now().strftime('%d %b %Y')}</div>", unsafe_allow_html=True)
 
 
 # ── Train Model ────────────────────────────────────────────────────────────────
 
 if page == "Train Model":
-    st.markdown("## Train Model")
-    st.caption("Upload historical flight schedules so the model learns passenger load patterns.")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Train Model &nbsp;·&nbsp; XGBoost Regression</div>
+</div>
+""", unsafe_allow_html=True)
 
     info = fetch_json(f"{API_BASE}/data/training/info")
     if info and info.get("loaded"):
-        st.success(f"**{info['flights']:,} flights** loaded · {info['date_from'][:10]} → {info['date_to'][:10]}")
         files_in_dataset = info.get("files", [])
+        st.markdown(f"""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Training Flights</div><div class="stat-val green">{info['flights']:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Date From</div><div class="stat-val">{info['date_from'][:10]}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Date To</div><div class="stat-val">{info['date_to'][:10]}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Files Loaded</div><div class="stat-val">{len(files_in_dataset)}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Status</div><div class="stat-val"><span class="stat-tag tag-green">Ready</span></div></div>
+</div>
+""", unsafe_allow_html=True)
         if files_in_dataset:
             with st.expander(f"{len(files_in_dataset)} file(s) in training set", expanded=False):
                 for f in files_in_dataset:
@@ -259,7 +315,12 @@ if page == "Train Model":
             st.cache_data.clear()
             st.rerun()
     else:
-        st.warning("No training data loaded yet.")
+        st.markdown("""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Training Data</div><div class="stat-val"><span class="stat-tag tag-amber">Not Loaded</span></div></div>
+  <div class="stat-cell"><div class="stat-lbl">Model</div><div class="stat-val"><span class="stat-tag tag-amber">Untrained</span></div></div>
+</div>
+""", unsafe_allow_html=True)
 
     st.divider()
 
@@ -292,12 +353,14 @@ if page == "Train Model":
         if r.ok:
             d = r.json()
             m = d.get("metrics", {})
+            mape = m.get('MAPE_%', '—')
+            mape_cls = "green" if isinstance(mape, (int,float)) and mape < 15 else "amber" if isinstance(mape, (int,float)) and mape < 30 else ""
             st.success("Model trained successfully")
             st.markdown(f"""
 <div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{m.get('MAE', '—')}</div><div class="kpi-lbl">Mean Absolute Error (passengers)</div></div>
-  <div class="kpi-box"><div class="kpi-val">{m.get('RMSE', '—')}</div><div class="kpi-lbl">Root Mean Square Error (passengers)</div></div>
-  <div class="kpi-box"><div class="kpi-val">{m.get('MAPE_%', '—')}%</div><div class="kpi-lbl">Mean Absolute Percentage Error</div></div>
+  <div class="kpi-box"><div class="kpi-val">{m.get('MAE', '—')}</div><div class="kpi-lbl">MAE · Mean Absolute Error (pax)</div></div>
+  <div class="kpi-box"><div class="kpi-val">{m.get('RMSE', '—')}</div><div class="kpi-lbl">RMSE · Root Mean Square Error (pax)</div></div>
+  <div class="kpi-box hl"><div class="kpi-val green">{mape}%</div><div class="kpi-lbl">MAPE · Mean Absolute % Error</div></div>
 </div>""", unsafe_allow_html=True)
         else:
             st.error(f"Training failed: {r.text}")
@@ -306,14 +369,29 @@ if page == "Train Model":
 # ── Forecast ───────────────────────────────────────────────────────────────────
 
 elif page == "Forecast":
-    st.markdown("## Forecast")
-    st.caption("Predict passenger load per 30-min window based on tomorrow's schedule.")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Check-in Forecast &nbsp;·&nbsp; 30-min Windows</div>
+</div>
+""", unsafe_allow_html=True)
 
     info = fetch_json(f"{API_BASE}/data/schedule/info")
     if info and info.get("loaded"):
-        st.success(f"Schedule: **{info['flights']:,} flights** · {info['date_from'][:10]} → {info['date_to'][:10]}")
+        st.markdown(f"""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Schedule Flights</div><div class="stat-val green">{info['flights']:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Date From</div><div class="stat-val">{info['date_from'][:10]}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Date To</div><div class="stat-val">{info['date_to'][:10]}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Status</div><div class="stat-val"><span class="stat-tag tag-green">Loaded</span></div></div>
+</div>
+""", unsafe_allow_html=True)
     else:
-        st.warning("No schedule uploaded yet.")
+        st.markdown("""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Schedule</div><div class="stat-val"><span class="stat-tag tag-amber">Not Uploaded</span></div></div>
+</div>
+""", unsafe_allow_html=True)
 
     uploaded = st.file_uploader("Upload upcoming flight schedule CSV", type=["csv"], key="schedule_upload")
     if uploaded and st.session_state.get("schedule_last_upload") != uploaded.name + str(uploaded.size):
@@ -347,11 +425,13 @@ elif page == "Forecast":
         peak = int(forecast["predicted_load"].max())
         total = int(forecast["predicted_load"].sum())
         windows = len(forecast)
+        peak_time = forecast.loc[forecast["predicted_load"].idxmax(), "window_start"].strftime("%H:%M") if not forecast.empty else "--:--"
         st.markdown(f"""
-<div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{windows}</div><div class="kpi-lbl">Time windows</div></div>
-  <div class="kpi-box"><div class="kpi-val">{peak}</div><div class="kpi-lbl">Peak pax / window</div></div>
-  <div class="kpi-box"><div class="kpi-val">{total:,}</div><div class="kpi-lbl">Total pax today</div></div>
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{windows}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Load</div><div class="stat-val red">{peak} pax</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_time}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Total Pax Today</div><div class="stat-val green">{total:,}</div></div>
 </div>""", unsafe_allow_html=True)
 
         # ── Cost Savings ──────────────────────────────────────────────
@@ -386,10 +466,10 @@ elif page == "Forecast":
         ans = f"{annual_saving:,.0f}"
         st.markdown(f"""
 <div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{rdh} h</div><div class="kpi-lbl">AI-recommended desk-hours today</div></div>
-  <div class="kpi-box"><div class="kpi-val">{fdh} h</div><div class="kpi-lbl">Flat staffing desk-hours today</div></div>
-  <div class="kpi-box" style="border:1px solid #2a5a2a"><div class="kpi-val" style="color:#52c07a">€{ds}</div><div class="kpi-lbl">Estimated daily savings</div></div>
-  <div class="kpi-box" style="border:1px solid #2a5a2a"><div class="kpi-val" style="color:#52c07a">€{ans}</div><div class="kpi-lbl">Projected annual savings</div></div>
+  <div class="kpi-box"><div class="kpi-val">{rdh} h</div><div class="kpi-lbl">AI · Recommended Desk-Hours</div></div>
+  <div class="kpi-box"><div class="kpi-val">{fdh} h</div><div class="kpi-lbl">Flat Staffing · Desk-Hours</div></div>
+  <div class="kpi-box hl"><div class="kpi-val green">€{ds}</div><div class="kpi-lbl">Est. Daily Savings</div></div>
+  <div class="kpi-box hl"><div class="kpi-val green">€{ans}</div><div class="kpi-lbl">Projected Annual Savings</div></div>
 </div>""", unsafe_allow_html=True)
 
         # load thresholds for reference lines
@@ -403,13 +483,13 @@ elif page == "Forecast":
             y=forecast["predicted_load"],
             marker=dict(
                 color=forecast["predicted_load"],
-                colorscale=[[0, "#3a7bd5"], [0.5, "#f0a500"], [1, "#e05252"]],
+                colorscale=[[0, "#4ade80"], [0.45, "#fb923c"], [1, "#f87171"]],
                 showscale=False,
             ),
             hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax<extra></extra>",
         ))
 
-        colors = {"level_1": "#f0c040", "level_2": "#f08040", "level_3": "#e05252"}
+        colors = {"level_1": "#4ade80", "level_2": "#fb923c", "level_3": "#f87171"}
         for key, color in colors.items():
             lvl = checkin.get(key)
             if lvl:
@@ -417,22 +497,22 @@ elif page == "Forecast":
                     y=lvl["threshold"],
                     line_dash="dot",
                     line_color=color,
-                    line_width=1.5,
-                    annotation_text=f"L{key[-1]}: {lvl['threshold']} pax",
+                    line_width=1,
+                    annotation_text=f"L{key[-1]} · {lvl['threshold']} pax",
                     annotation_position="right",
                     annotation_font_color=color,
-                    annotation_font_size=11,
+                    annotation_font_size=10,
                 )
 
         fig.update_layout(
-            title="Predicted Passenger Load — 30-min Windows",
-            plot_bgcolor="#0f1117",
-            paper_bgcolor="#0f1117",
-            font_color="#e0e0e0",
-            xaxis=dict(gridcolor="#2a2d3a", title=""),
-            yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
-            margin=dict(l=10, r=80, t=40, b=10),
-            height=340,
+            title=dict(text="CHECK-IN · PREDICTED LOAD · 30-MIN WINDOWS", font=dict(size=10, color="#334155"), x=0),
+            plot_bgcolor="#0b0d10",
+            paper_bgcolor="#0b0d10",
+            font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            margin=dict(l=10, r=90, t=36, b=10),
+            height=320,
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -443,13 +523,23 @@ elif page == "Forecast":
                 hide_index=True,
             )
     else:
-        st.info("No forecast yet — upload a schedule and click Run Forecast.")
+        st.markdown("""
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Forecast</div><div class="stat-val"><span class="stat-tag tag-amber">No Data</span></div></div>
+  <div class="stat-cell"><div class="stat-lbl">Action Required</div><div class="stat-val" style="font-size:0.85rem;color:#334155">Upload schedule → Run Forecast</div></div>
+</div>
+""", unsafe_allow_html=True)
 
 
 # ── Alerts ─────────────────────────────────────────────────────────────────────
 
 elif page == "Alerts":
-    st.markdown("## Check-in Desk Alerts")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Check-in Alerts &nbsp;·&nbsp; Desk Management</div>
+</div>
+""", unsafe_allow_html=True)
 
     desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
     current_desks = desk_resp["desks_open"] if desk_resp else 0
@@ -468,7 +558,7 @@ elif page == "Alerts":
             st.cache_data.clear()
             st.rerun()
     with dc3:
-        st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_desks}</b> open desk(s)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_desks}</b> open desk(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -481,7 +571,7 @@ elif page == "Alerts":
 
     def render_alerts(df: pd.DataFrame, show_ack: bool = False):
         if df.empty:
-            st.markdown("<div style='color:#666; padding:20px 0'>No alerts in this category.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#1e2a3a; padding:20px 0; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em'>No alerts in this category</div>", unsafe_allow_html=True)
             return
         for _, row in df.iterrows():
             alert_type  = row.get("type", "")
@@ -537,8 +627,12 @@ elif page == "Alerts":
 # ── Simulation ─────────────────────────────────────────────────────────────────
 
 elif page == "Simulation":
-    st.markdown("## Check-in Flow Simulation")
-    st.caption("Select a forecast time window to simulate exactly that window's passenger load and recommended desk count.")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Agent Simulation &nbsp;·&nbsp; Check-in Flow</div>
+</div>
+""", unsafe_allow_html=True)
 
     _SIM_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -547,77 +641,78 @@ elif page == "Simulation":
 <title>Terminal Simulation</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0d14;color:#c8d0e0;padding:10px;overflow-x:hidden}
-.wrap{display:flex;gap:12px;align-items:flex-start}
-.sim-panel{flex:1;min-width:0;background:#111825;border-radius:10px;padding:12px;border:1px solid #1e2840}
-canvas#c{display:block;border-radius:6px;border:1px solid #1e2840;width:100%}
-.btns{display:flex;justify-content:center;gap:8px;margin:10px 0 8px}
-.btn{padding:7px 18px;font-size:12px;border:none;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:.04em;transition:all .15s}
-.btn:active{transform:scale(.96)}
-.btn-s{background:#163324;color:#5ddd8a;border:1px solid #2a5a3a}.btn-s:hover{background:#1e4430}
-.btn-s:disabled{background:#111e18;color:#3a5545;border-color:#1a2e22;cursor:not-allowed}
-.btn-p{background:#33220a;color:#f0b84a;border:1px solid #5a3a14}.btn-p:hover{background:#42300f}
-.btn-p:disabled{background:#1e180a;color:#5a4520;border-color:#2a2010;cursor:not-allowed}
-.btn-r{background:#141c2e;color:#7a9acc;border:1px solid #1e3050}.btn-r:hover{background:#1a2438}
-.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:8px;background:#0d1118;border-radius:6px}
-.sbox{text-align:center;padding:6px 3px;background:#111825;border-radius:5px;border:1px solid #1a2338}
-.slbl{color:#445566;font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
-.sval{font-size:16px;font-weight:700}
-.c-b{color:#5599ff}.c-y{color:#f0c040}.c-g{color:#44cc88}.c-r{color:#ee5544}.c-w{color:#d0dae8}.c-o{color:#ff9944}
-.progress-wrap{height:6px;background:#0d1118;border-radius:3px;margin-top:6px;overflow:hidden}
-.progress-bar{height:100%;background:linear-gradient(90deg,#3a7bd5,#44cc88);border-radius:3px;transition:width .3s}
-.prog-lbl{font-size:9px;color:#445566;text-align:center;margin-top:2px}
-.right{width:268px;flex-shrink:0;background:#111825;border-radius:10px;padding:12px;border:1px solid #1e2840;display:flex;flex-direction:column;gap:9px;max-height:820px;overflow-y:auto}
-.sec-title{font-size:10px;font-weight:700;color:#445566;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
-.api-row{display:flex;gap:5px}
-.abtn{flex:1;padding:6px;font-size:11px;border:none;border-radius:5px;cursor:pointer;font-weight:700;transition:all .15s}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter','Segoe UI',Arial,sans-serif}
+body{background:#0b0d10;color:#94a3b8;padding:10px;overflow-x:hidden}
+.wrap{display:flex;gap:10px;align-items:flex-start}
+.sim-panel{flex:1;min-width:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26}
+canvas#c{display:block;border-radius:4px;border:1px solid #161c26;width:100%}
+.btns{display:flex;justify-content:center;gap:6px;margin:8px 0 6px}
+.btn{padding:6px 16px;font-size:11px;border:none;border-radius:4px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
+.btn:active{transform:scale(.97)}
+.btn-s{background:#4ade80;color:#020d06;border:none}.btn-s:hover{background:#5bf58f}
+.btn-s:disabled{background:#162a1c;color:#334155;cursor:not-allowed}
+.btn-p{background:#fb923c18;color:#fb923c;border:1px solid #fb923c30}.btn-p:hover{background:#fb923c30}
+.btn-p:disabled{background:#0f0e09;color:#3a2a15;border-color:#1c160a;cursor:not-allowed}
+.btn-r{background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30}.btn-r:hover{background:#60a5fa25}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#161c26;border-radius:4px;overflow:hidden;margin-top:6px}
+.sbox{text-align:center;padding:8px 3px;background:#0f1318}
+.slbl{color:#334155;font-size:8px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:700}
+.sval{font-size:15px;font-weight:800}
+.c-b{color:#60a5fa}.c-y{color:#fb923c}.c-g{color:#4ade80}.c-r{color:#f87171}.c-w{color:#e2e8f0}.c-o{color:#fb923c}
+.progress-wrap{height:4px;background:#0b0d10;border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#4ade80,#fb923c);border-radius:2px;transition:width .3s}
+.prog-lbl{font-size:8px;color:#334155;text-align:center;margin-top:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.right{width:260px;flex-shrink:0;background:#0f1318;border-radius:6px;padding:10px;border:1px solid #161c26;display:flex;flex-direction:column;gap:8px;max-height:820px;overflow-y:auto}
+.sec-title{font-size:8px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
+.api-row{display:flex;gap:4px}
+.abtn{flex:1;padding:6px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
 .abtn:active{transform:scale(.97)}
-.abtn-g{background:#132a1c;color:#66ee99;border:1px solid #255a30}.abtn-g:hover{background:#1a3a25}
-.abtn-b{background:#112235;color:#66aaee;border:1px solid #1e4060}.abtn-b:hover{background:#172d45}
-.abtn:disabled{opacity:.4;cursor:not-allowed}
-.smsg{padding:5px 7px;border-radius:4px;font-size:10px;text-align:center;display:none}
-.smsg.ok{background:#0d2216;color:#44dd77;border:1px solid #1a4a2a;display:block}
-.smsg.err{background:#220d0d;color:#ff7070;border:1px solid #4a1a1a;display:block}
+.abtn-g{background:#4ade8018;color:#4ade80;border:1px solid #4ade8030}.abtn-g:hover{background:#4ade8030}
+.abtn-b{background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30}.abtn-b:hover{background:#60a5fa25}
+.abtn:disabled{opacity:.35;cursor:not-allowed}
+.smsg{padding:5px 7px;border-radius:3px;font-size:9px;text-align:center;display:none;font-weight:600;letter-spacing:.04em}
+.smsg.ok{background:#4ade8012;color:#4ade80;border:1px solid #4ade8025;display:block}
+.smsg.err{background:#f8717112;color:#f87171;border:1px solid #f8717125;display:block}
 .timeline-scroll{overflow-x:auto;padding-bottom:4px}
-.timeline-scroll::-webkit-scrollbar{height:4px}
-.timeline-scroll::-webkit-scrollbar-track{background:#0d1118}
-.timeline-scroll::-webkit-scrollbar-thumb{background:#2a3a50;border-radius:2px}
-.timeline-row{display:flex;gap:3px;min-width:max-content;padding:2px 0}
-.tblock{width:30px;flex-shrink:0;cursor:pointer;border-radius:3px;border:1px solid transparent;transition:all .15s;position:relative;overflow:visible}
-.tblock:hover .tblock-bar{opacity:.85}
-.tblock-bar{height:30px;border-radius:2px;transition:opacity .15s}
-.tblock-lbl{font-size:7px;color:#445566;text-align:center;margin-top:2px;white-space:nowrap}
-.tblock.selected{border-color:#5599ff !important}
-.tblock.selected .tblock-lbl{color:#5599ff}
-.alert-dot{position:absolute;top:-4px;right:2px;width:6px;height:6px;border-radius:50%;border:1px solid #0a0d14}
-.win-card{background:#0d1118;border-radius:6px;padding:9px;border:1px solid #1a2840}
-.win-card-time{font-size:18px;font-weight:700;color:#e0eeff;margin-bottom:4px}
-.win-card-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #161e2c}
+.timeline-scroll::-webkit-scrollbar{height:3px}
+.timeline-scroll::-webkit-scrollbar-track{background:#0b0d10}
+.timeline-scroll::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
+.timeline-row{display:flex;gap:2px;min-width:max-content;padding:2px 0}
+.tblock{width:28px;flex-shrink:0;cursor:pointer;border-radius:2px;border:1px solid transparent;transition:all .15s;position:relative;overflow:visible}
+.tblock:hover .tblock-bar{opacity:.8}
+.tblock-bar{height:28px;border-radius:2px;transition:opacity .15s}
+.tblock-lbl{font-size:7px;color:#1e2a3a;text-align:center;margin-top:2px;white-space:nowrap;font-weight:600}
+.tblock.selected{border-color:#4ade80 !important}
+.tblock.selected .tblock-lbl{color:#4ade80}
+.alert-dot{position:absolute;top:-4px;right:2px;width:5px;height:5px;border-radius:50%;border:1px solid #0b0d10}
+.win-card{background:#0b0d10;border-radius:4px;padding:9px;border:1px solid #161c26}
+.win-card-time{font-size:20px;font-weight:800;color:#e2e8f0;margin-bottom:5px;letter-spacing:-0.02em}
+.win-card-row{display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid #161c26}
 .win-card-row:last-child{border:none}
-.win-card-lbl{color:#445566}
-.win-card-val{font-weight:600;color:#c8d0e0}
-.win-card-val.alert-open{color:#ee7766}
-.win-card-val.alert-close{color:#66dd88}
-.alert-msg{font-size:10px;margin-top:5px;padding:5px 7px;border-radius:4px;line-height:1.4}
-.alert-msg.open{background:#2a100a;border-left:3px solid #cc4422;color:#ffaa88}
-.alert-msg.close{background:#0a2010;border-left:3px solid #228844;color:#88ffaa}
-.load-btn{width:100%;padding:8px;font-size:12px;border:none;border-radius:5px;cursor:pointer;font-weight:700;background:#1a3060;color:#88bbff;border:1px solid #2a4880;margin-top:6px;transition:all .15s}
-.load-btn:hover{background:#203878}
-.load-btn:disabled{opacity:.4;cursor:not-allowed}
-.no-fc{font-size:11px;color:#334455;text-align:center;padding:16px 0}
-.speed-box{background:#0d1118;padding:9px;border-radius:5px}
+.win-card-lbl{color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:9px}
+.win-card-val{font-weight:700;color:#94a3b8}
+.win-card-val.alert-open{color:#f87171}
+.win-card-val.alert-close{color:#4ade80}
+.alert-msg{font-size:9px;margin-top:5px;padding:5px 7px;border-radius:3px;line-height:1.5;font-weight:600}
+.alert-msg.open{background:#f8717110;border-left:2px solid #f87171;color:#f87171}
+.alert-msg.close{background:#4ade8010;border-left:2px solid #4ade80;color:#4ade80}
+.load-btn{width:100%;padding:8px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#4ade80;color:#020d06;margin-top:6px;transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
+.load-btn:hover{background:#5bf58f}
+.load-btn:disabled{opacity:.35;cursor:not-allowed;background:#162a1c;color:#334155}
+.no-fc{font-size:10px;color:#1e2a3a;text-align:center;padding:16px 0;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.speed-box{background:#0b0d10;padding:8px;border-radius:4px;border:1px solid #161c26}
 .speed-row{display:flex;flex-direction:column;gap:3px}
-.speed-row label{font-size:10px;color:#445566;font-weight:700;display:flex;justify-content:space-between;margin-bottom:2px}
-.speed-row label span{color:#f0c040;font-weight:700;font-size:12px}
-.speed-row input[type=range]{width:100%;accent-color:#f0c040;cursor:pointer}
-.speed-hint{font-size:9px;color:#33445566;margin-top:2px}
-.day-btn{width:100%;padding:8px;font-size:12px;border:none;border-radius:5px;cursor:pointer;font-weight:700;background:#2a1060;color:#cc88ff;border:1px solid #4a20a0;transition:all .15s;margin-top:4px}
-.day-btn:hover{background:#3a1878}
-.day-btn:disabled{opacity:.4;cursor:not-allowed}
-.day-prog{font-size:10px;color:#8866cc;text-align:center;margin-top:3px;display:none}
-.legend{display:flex;flex-wrap:wrap;gap:4px 8px}
-.leg{display:flex;align-items:center;gap:3px;font-size:9px;color:#556677}
+.speed-row label{font-size:9px;color:#334155;font-weight:700;display:flex;justify-content:space-between;margin-bottom:2px;text-transform:uppercase;letter-spacing:.08em}
+.speed-row label span{color:#4ade80;font-weight:800;font-size:11px}
+.speed-row input[type=range]{width:100%;accent-color:#4ade80;cursor:pointer}
+.speed-hint{font-size:8px;color:#1e2a3a;margin-top:2px;font-weight:600}
+.day-btn{width:100%;padding:7px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30;transition:all .15s;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.day-btn:hover{background:#60a5fa25}
+.day-btn:disabled{opacity:.35;cursor:not-allowed}
+.day-prog{font-size:8px;color:#334155;text-align:center;margin-top:3px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px}
+.leg{display:flex;align-items:center;gap:4px;font-size:8px;color:#334155;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .lsq{width:8px;height:7px;border-radius:1px;flex-shrink:0}
 </style>
@@ -1314,8 +1409,12 @@ loop();
 # ── Security ───────────────────────────────────────────────────────────────────
 
 elif page == "Security":
-    st.markdown("## Security Checkpoint")
-    st.caption("Passenger flow through security — derived from check-in forecast with a 20-min delay and 90% flow factor.")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Security Checkpoint &nbsp;·&nbsp; Lane Management</div>
+</div>
+""", unsafe_allow_html=True)
 
     # Lane state control
     lane_resp = fetch_json(f"{API_BASE}/security/lanes")
@@ -1330,7 +1429,7 @@ elif page == "Security":
             requests.post(f"{API_BASE}/security/lanes", json={"lanes_open": new_lane_count})
             st.rerun()
     with lc3:
-        st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -1354,13 +1453,15 @@ elif page == "Security":
         peak_sec = int(sec_forecast["predicted_load"].max())
         total_sec = int(sec_forecast["predicted_load"].sum())
         open_sec = len(fetch_security_alerts("OPEN"))
+        peak_sec_time = sec_forecast.loc[sec_forecast["predicted_load"].idxmax(), "window_start"].strftime("%H:%M") if not sec_forecast.empty else "--:--"
 
         st.markdown(f"""
-<div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{len(sec_forecast)}</div><div class="kpi-lbl">Time windows</div></div>
-  <div class="kpi-box"><div class="kpi-val">{peak_sec}</div><div class="kpi-lbl">Peak pax / window</div></div>
-  <div class="kpi-box"><div class="kpi-val">{total_sec:,}</div><div class="kpi-lbl">Total pax today</div></div>
-  <div class="kpi-box"><div class="kpi-val">{open_sec}</div><div class="kpi-lbl">Open alerts</div></div>
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{len(sec_forecast)}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Load</div><div class="stat-val red">{peak_sec} pax</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_sec_time}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_sec:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Open Alerts</div><div class="stat-val {'red' if open_sec else 'green'}">{open_sec}</div></div>
 </div>""", unsafe_allow_html=True)
 
         fig = go.Figure()
@@ -1371,8 +1472,8 @@ elif page == "Security":
                 x=checkin_forecast["window_start"],
                 y=checkin_forecast["predicted_load"],
                 name="Check-in load",
-                line=dict(color="#3a7bd5", width=1.5, dash="dot"),
-                opacity=0.5,
+                line=dict(color="#60a5fa", width=1.5, dash="dot"),
+                opacity=0.4,
                 hovertemplate="<b>Check-in %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
             ))
 
@@ -1383,7 +1484,7 @@ elif page == "Security":
             name="Security load",
             marker=dict(
                 color=sec_forecast["predicted_load"],
-                colorscale=[[0, "#1a4a6a"], [0.5, "#c07830"], [1, "#c03030"]],
+                colorscale=[[0, "#4ade80"], [0.45, "#fb923c"], [1, "#f87171"]],
                 showscale=False,
             ),
             hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
@@ -1392,7 +1493,7 @@ elif page == "Security":
         # Security threshold lines
         thresholds = fetch_json(f"{API_BASE}/thresholds")
         sec_cfg = thresholds.get("security", {}) if thresholds else {}
-        sec_colors = {"level_1": "#f0c040", "level_2": "#f08040", "level_3": "#e05252"}
+        sec_colors = {"level_1": "#4ade80", "level_2": "#fb923c", "level_3": "#f87171"}
         for key, color in sec_colors.items():
             lvl = sec_cfg.get(key)
             if lvl:
@@ -1400,23 +1501,23 @@ elif page == "Security":
                     y=lvl["threshold"],
                     line_dash="dot",
                     line_color=color,
-                    line_width=1.5,
-                    annotation_text=f"L{key[-1]}: {lvl['threshold']} pax",
+                    line_width=1,
+                    annotation_text=f"L{key[-1]} · {lvl['threshold']} pax",
                     annotation_position="right",
                     annotation_font_color=color,
-                    annotation_font_size=11,
+                    annotation_font_size=10,
                 )
 
         fig.update_layout(
-            title="Security Checkpoint Load — 30-min Windows (20-min offset from check-in)",
-            plot_bgcolor="#0f1117",
-            paper_bgcolor="#0f1117",
-            font_color="#e0e0e0",
-            xaxis=dict(gridcolor="#2a2d3a", title=""),
-            yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
-            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
-            margin=dict(l=10, r=80, t=40, b=10),
-            height=340,
+            title=dict(text="SECURITY · PREDICTED LOAD · 30-MIN WINDOWS (+20 MIN OFFSET)", font=dict(size=10, color="#334155"), x=0),
+            plot_bgcolor="#0b0d10",
+            paper_bgcolor="#0b0d10",
+            font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
+            margin=dict(l=10, r=90, t=36, b=10),
+            height=320,
             barmode="overlay",
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -1495,9 +1596,9 @@ elif page == "Security":
             ))
         fig_s.update_layout(
             title="Security Sensor: Actual vs Predicted",
-            plot_bgcolor="#0f1117", paper_bgcolor="#0f1117", font_color="#e0e0e0",
-            xaxis=dict(gridcolor="#2a2d3a"), yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
-            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#334155")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
         )
         st.plotly_chart(fig_s, use_container_width=True)
@@ -1575,8 +1676,12 @@ elif page == "Security":
 # ── Gate ───────────────────────────────────────────────────────────────────────
 
 elif page == "Gate":
-    st.markdown("## Gate (Boarding Control)")
-    st.caption("Ticket scan / boarding agents — derived from security forecast with a 30-min delay and 98% flow factor.")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Gate Boarding Control &nbsp;·&nbsp; Agent Management</div>
+</div>
+""", unsafe_allow_html=True)
 
     # Agent state control
     agent_resp = fetch_json(f"{API_BASE}/gate/agents")
@@ -1591,7 +1696,7 @@ elif page == "Gate":
             requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_agent_count})
             st.rerun()
     with gc3:
-        st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:32px; color:#334155; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -1615,13 +1720,15 @@ elif page == "Gate":
         peak_gate = int(gate_forecast["predicted_load"].max())
         total_gate = int(gate_forecast["predicted_load"].sum())
         open_gate = len(fetch_gate_alerts("OPEN"))
+        peak_gate_time = gate_forecast.loc[gate_forecast["predicted_load"].idxmax(), "window_start"].strftime("%H:%M") if not gate_forecast.empty else "--:--"
 
         st.markdown(f"""
-<div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{len(gate_forecast)}</div><div class="kpi-lbl">Time windows</div></div>
-  <div class="kpi-box"><div class="kpi-val">{peak_gate}</div><div class="kpi-lbl">Peak pax / window</div></div>
-  <div class="kpi-box"><div class="kpi-val">{total_gate:,}</div><div class="kpi-lbl">Total pax today</div></div>
-  <div class="kpi-box"><div class="kpi-val">{open_gate}</div><div class="kpi-lbl">Open alerts</div></div>
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Time Windows</div><div class="stat-val">{len(gate_forecast)}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Load</div><div class="stat-val red">{peak_gate} pax</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak Window</div><div class="stat-val">{peak_gate_time}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Total Pax</div><div class="stat-val green">{total_gate:,}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Open Alerts</div><div class="stat-val {'red' if open_gate else 'green'}">{open_gate}</div></div>
 </div>""", unsafe_allow_html=True)
 
         fig = go.Figure()
@@ -1632,8 +1739,8 @@ elif page == "Gate":
                 x=sec_forecast["window_start"],
                 y=sec_forecast["predicted_load"],
                 name="Security load",
-                line=dict(color="#c07830", width=1.5, dash="dot"),
-                opacity=0.5,
+                line=dict(color="#fb923c", width=1.5, dash="dot"),
+                opacity=0.4,
                 hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
             ))
 
@@ -1644,7 +1751,7 @@ elif page == "Gate":
             name="Gate load",
             marker=dict(
                 color=gate_forecast["predicted_load"],
-                colorscale=[[0, "#1a3a6a"], [0.5, "#8030c0"], [1, "#c03080"]],
+                colorscale=[[0, "#4ade80"], [0.45, "#fb923c"], [1, "#f87171"]],
                 showscale=False,
             ),
             hovertemplate="<b>Gate %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
@@ -1653,7 +1760,7 @@ elif page == "Gate":
         # Gate threshold lines
         thresholds = fetch_json(f"{API_BASE}/thresholds")
         gate_cfg = thresholds.get("gate", {}) if thresholds else {}
-        gate_colors = {"level_1": "#f0c040", "level_2": "#f08040", "level_3": "#e05252"}
+        gate_colors = {"level_1": "#4ade80", "level_2": "#fb923c", "level_3": "#f87171"}
         for key, color in gate_colors.items():
             lvl = gate_cfg.get(key)
             if lvl:
@@ -1661,23 +1768,23 @@ elif page == "Gate":
                     y=lvl["threshold"],
                     line_dash="dot",
                     line_color=color,
-                    line_width=1.5,
-                    annotation_text=f"L{key[-1]}: {lvl['threshold']} pax",
+                    line_width=1,
+                    annotation_text=f"L{key[-1]} · {lvl['threshold']} pax",
                     annotation_position="right",
                     annotation_font_color=color,
-                    annotation_font_size=11,
+                    annotation_font_size=10,
                 )
 
         fig.update_layout(
-            title="Gate Boarding Load — 30-min Windows (30-min offset from security)",
-            plot_bgcolor="#0f1117",
-            paper_bgcolor="#0f1117",
-            font_color="#e0e0e0",
-            xaxis=dict(gridcolor="#2a2d3a", title=""),
-            yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
-            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
-            margin=dict(l=10, r=80, t=40, b=10),
-            height=340,
+            title=dict(text="GATE · BOARDING LOAD · 30-MIN WINDOWS (+30 MIN OFFSET)", font=dict(size=10, color="#334155"), x=0),
+            plot_bgcolor="#0b0d10",
+            paper_bgcolor="#0b0d10",
+            font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
+            margin=dict(l=10, r=90, t=36, b=10),
+            height=320,
             barmode="overlay",
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -1757,9 +1864,9 @@ elif page == "Gate":
             ))
         fig_g.update_layout(
             title="Gate Sensor: Actual vs Predicted",
-            plot_bgcolor="#0f1117", paper_bgcolor="#0f1117", font_color="#e0e0e0",
-            xaxis=dict(gridcolor="#2a2d3a"), yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
-            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            plot_bgcolor="#0b0d10", paper_bgcolor="#0b0d10", font_color="#64748b",
+            xaxis=dict(gridcolor="#161c26", tickfont=dict(size=10, color="#334155")), yaxis=dict(gridcolor="#161c26", title="", tickfont=dict(size=10, color="#334155")),
+            legend=dict(bgcolor="#0f1318", bordercolor="#161c26", font=dict(color="#64748b")),
             margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
         )
         st.plotly_chart(fig_g, use_container_width=True)
@@ -1837,7 +1944,12 @@ elif page == "Gate":
 # ── Settings ───────────────────────────────────────────────────────────────────
 
 elif page == "Settings":
-    st.markdown("## Settings")
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Settings &nbsp;·&nbsp; Alert Thresholds</div>
+</div>
+""", unsafe_allow_html=True)
 
     try:
         r = requests.get(f"{API_BASE}/thresholds", timeout=5)
@@ -1862,12 +1974,12 @@ elif page == "Settings":
                 st.success(f"Analysed **{ana['windows_analysed']}** windows")
 
                 st.markdown(f"""
-<div class="kpi-row">
-  <div class="kpi-box"><div class="kpi-val">{ana['pax_min']}</div><div class="kpi-lbl">Min pax</div></div>
-  <div class="kpi-box"><div class="kpi-val">{ana['pax_p50']}</div><div class="kpi-lbl">Median</div></div>
-  <div class="kpi-box"><div class="kpi-val">{ana['pax_p75']}</div><div class="kpi-lbl">75th pct</div></div>
-  <div class="kpi-box"><div class="kpi-val">{ana['pax_p90']}</div><div class="kpi-lbl">90th pct</div></div>
-  <div class="kpi-box"><div class="kpi-val">{ana['pax_max']}</div><div class="kpi-lbl">Max</div></div>
+<div class="stat-strip">
+  <div class="stat-cell"><div class="stat-lbl">Min Pax</div><div class="stat-val">{ana['pax_min']}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Median (P50)</div><div class="stat-val">{ana['pax_p50']}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">P75</div><div class="stat-val amber">{ana['pax_p75']}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">P90</div><div class="stat-val amber">{ana['pax_p90']}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Peak</div><div class="stat-val red">{ana['pax_max']}</div></div>
 </div>""", unsafe_allow_html=True)
 
                 if ana["delay_adjusted"]:

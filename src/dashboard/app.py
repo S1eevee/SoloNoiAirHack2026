@@ -1812,10 +1812,10 @@ async function loadForecast(){
       fetch(`${API}/forecast`),
       fetch(`${API}/alerts`)
     ]);
-    if(!fr.ok)throw new Error('Forecast not available');
+    if(!fr.ok){const err=await fr.json().catch(()=>({}));throw new Error(err.detail||'Forecast not available — upload schedule and press Load Forecast');}
     fData=await fr.json();
     aData=ar.ok?await ar.json():[];
-    if(!Array.isArray(fData)||fData.length===0)throw new Error('No forecast data');
+    if(!Array.isArray(fData)||fData.length===0)throw new Error('No check-in forecast — press Train then Load Forecast');
     buildTimeline();
     msg('Loaded '+fData.length+' windows, '+aData.length+' alerts',true);
   }catch(e){
@@ -1849,8 +1849,15 @@ document.getElementById('btnForecast').addEventListener('click',async()=>{
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-initDesks(10);
-loadForecast();  // auto-load on page open
+async function bootSim(){
+  try{
+    const ds=await fetch(`${API}/alerts/desks`);
+    const dd=ds.ok?await ds.json():null;
+    initDesks(dd?.desks_open??1);
+  }catch(e){initDesks(1);}
+  await loadForecast();
+}
+bootSim();
 loop();
 </script>
 </body>

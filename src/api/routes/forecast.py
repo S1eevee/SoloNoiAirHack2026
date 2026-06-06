@@ -7,8 +7,9 @@ from src.model.predict import predict_next_day
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
 
-TRAINING_PATH = Path("data/processed/training_data.csv")
-SCHEDULE_PATH = Path("data/processed/uploaded_schedule.csv")
+TRAINING_PATH    = Path("data/processed/training_data.csv")
+SCHEDULE_PATH    = Path("data/processed/uploaded_schedule.csv")
+PREDICTIONS_PATH = Path("data/processed/checkin_predictions.csv")
 
 
 @router.post("/train")
@@ -74,6 +75,8 @@ async def run_forecast():
     alerts = generate_alerts(predictions)
     save_alerts(alerts)
 
+    predictions.to_csv(PREDICTIONS_PATH, index=False)
+
     return {
         "windows_predicted": len(predictions),
         "alerts_generated": len(alerts),
@@ -83,6 +86,11 @@ async def run_forecast():
 
 @router.get("")
 async def get_forecast():
+    # Return cached predictions if available — avoids re-running the model on every page load
+    if PREDICTIONS_PATH.exists():
+        preds = pd.read_csv(PREDICTIONS_PATH)
+        return preds.to_dict(orient="records")
+
     if not SCHEDULE_PATH.exists():
         raise HTTPException(404, "No schedule uploaded. POST /data/upload/schedule first.")
     try:
@@ -92,4 +100,5 @@ async def get_forecast():
 
     df = pd.read_csv(SCHEDULE_PATH, parse_dates=["scheduled_time"])
     predictions = predict_next_day(model, df)
+    predictions.to_csv(PREDICTIONS_PATH, index=False)
     return predictions.to_dict(orient="records")

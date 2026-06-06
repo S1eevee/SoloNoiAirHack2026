@@ -314,21 +314,28 @@ if page == "Home":
     security_fc = fetch_security_forecast()
     gate_fc     = fetch_gate_forecast()
 
-    def _load_now(df: pd.DataFrame) -> int:
+    def _load_now(df: pd.DataFrame):
+        """Returns (load, window_start) for the nearest matching window."""
         if df.empty:
-            return 0
+            return 0, current_window
         df2 = df.copy()
         df2["window_start"] = pd.to_datetime(df2["window_start"])
-        row = df2[df2["window_start"].dt.hour == current_window.hour]
-        row = row[row["window_start"].dt.minute == window_min]
-        return int(row["predicted_load"].iloc[0]) if not row.empty else 0
+        row = df2[(df2["window_start"].dt.hour == current_window.hour) &
+                  (df2["window_start"].dt.minute == window_min)]
+        if not row.empty:
+            return int(row["predicted_load"].iloc[0]), row["window_start"].iloc[0]
+        df2["_tod"] = df2["window_start"].dt.hour * 60 + df2["window_start"].dt.minute
+        cur_tod = current_window.hour * 60 + window_min
+        df2["_diff"] = (df2["_tod"] - cur_tod).abs()
+        nearest = df2.loc[df2["_diff"].idxmin()]
+        return int(nearest["predicted_load"]), nearest["window_start"]
 
     def _peak(df: pd.DataFrame) -> int:
         return int(df["predicted_load"].max()) if not df.empty else 1
 
-    ci_load  = _load_now(checkin_fc)
-    sec_load = _load_now(security_fc)
-    gate_load= _load_now(gate_fc)
+    ci_load,   ci_win   = _load_now(checkin_fc)
+    sec_load,  sec_win  = _load_now(security_fc)
+    gate_load, gate_win = _load_now(gate_fc)
 
     ci_peak  = max(_peak(checkin_fc),  1)
     sec_peak = max(_peak(security_fc), 1)
@@ -351,7 +358,10 @@ if page == "Home":
     sec_wait  = _wait(sec_load,  max(current_lanes, 1), 8)
     gate_wait = _wait(gate_load, max(current_agents, 1), 10)
 
-    def _gauge(title, load, peak, wait_min, color, unit="pax"):
+    def _gauge(title, load, peak, wait_min, color, unit="pax", win=None):
+        if win is None:
+            win = current_window
+        win_end = pd.Timestamp(win) + pd.Timedelta(minutes=30)
         pct   = min(load / peak, 1.0) * 100
         steps = [
             dict(range=[0,      peak * 0.5],  color="#0f1318"),
@@ -366,7 +376,7 @@ if page == "Home":
                        increasing=dict(color="#f87171"),
                        decreasing=dict(color="#4ade80")),
             title=dict(
-                text=f"<b>{title}</b><br><span style='font-size:0.72em;color:#475569'>~{wait_min} min wait · window {current_window.strftime('%H:%M')}–{next_window.strftime('%H:%M')}</span>",
+                text=f"<b>{title}</b><br><span style='font-size:0.72em;color:#475569'>~{wait_min} min wait · window {pd.Timestamp(win).strftime('%H:%M')}–{win_end.strftime('%H:%M')}</span>",
                 font=dict(size=14, color="#94a3b8"),
             ),
             gauge=dict(
@@ -422,7 +432,7 @@ if page == "Home":
 <div class="stat-strip">
   <div class="stat-cell">
     <div class="stat-lbl">Current Window</div>
-    <div class="stat-val">{current_window.strftime('%H:%M')} – {next_window.strftime('%H:%M')}</div>
+    <div class="stat-val">{pd.Timestamp(ci_win).strftime('%H:%M')} – {(pd.Timestamp(ci_win) + pd.Timedelta(minutes=30)).strftime('%H:%M')}</div>
   </div>
   <div class="stat-cell">
     <div class="stat-lbl">Check-in Load</div>
@@ -453,7 +463,7 @@ if page == "Home":
         g1, g2, g3 = st.columns(3)
         with g1:
             st.plotly_chart(
-                _gauge("CHECK-IN", ci_load, ci_peak, ci_wait, ci_color),
+                _gauge("CHECK-IN", ci_load, ci_peak, ci_wait, ci_color, win=ci_win),
                 use_container_width=True, config={"displayModeBar": False},
             )
             st.markdown(f"""
@@ -465,7 +475,7 @@ if page == "Home":
 
         with g2:
             st.plotly_chart(
-                _gauge("SECURITY", sec_load, sec_peak, sec_wait, sec_color),
+                _gauge("SECURITY", sec_load, sec_peak, sec_wait, sec_color, win=sec_win),
                 use_container_width=True, config={"displayModeBar": False},
             )
             st.markdown(f"""
@@ -477,7 +487,7 @@ if page == "Home":
 
         with g3:
             st.plotly_chart(
-                _gauge("GATE / BOARDING", gate_load, gate_peak, gate_wait, gate_color),
+                _gauge("GATE / BOARDING", gate_load, gate_peak, gate_wait, gate_color, win=gate_win),
                 use_container_width=True, config={"displayModeBar": False},
             )
             st.markdown(f"""
@@ -497,8 +507,14 @@ if page == "Home":
                 return pd.DataFrame()
             df2 = df.copy()
             df2["window_start"] = pd.to_datetime(df2["window_start"])
-            df2 = df2[df2["window_start"] >= pd.Timestamp(current_window)]
-            return df2.head(n)
+            cur_tod = current_window.hour * 60 + window_min
+            df2["_tod"] = df2["window_start"].dt.hour * 60 + df2["window_start"].dt.minute
+            df2 = df2.sort_values("_tod").reset_index(drop=True)
+            # find first window at or after current time-of-day
+            ahead = df2[df2["_tod"] >= cur_tod]
+            if ahead.empty:
+                ahead = df2  # wrap around: all windows are earlier, just show from start
+            return ahead.head(n)
 
         ci_next   = _next_windows(checkin_fc)
         sec_next  = _next_windows(security_fc)

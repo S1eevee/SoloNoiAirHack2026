@@ -3,7 +3,12 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from src.alerts.state import get_alerts, acknowledge_alert, resolve_alert, init_db, get_desks_open, set_desks_open
+from src.alerts.state import (
+    get_alerts, acknowledge_alert, resolve_alert, init_db,
+    get_desks_open, set_desks_open,
+    get_lanes_open, get_agents_open,
+    get_security_alerts, get_gate_alerts,
+)
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -20,11 +25,9 @@ class DeskStateRequest(BaseModel):
 
 @router.get("/status")
 async def get_status():
-    """Single endpoint for all sidebar state — reduces dashboard API calls."""
+    """Single consolidated endpoint for all sidebar state — one call instead of eight."""
     import json
     from pathlib import Path
-    desks = get_desks_open()
-    open_alerts = get_alerts(status="OPEN")
     manifest_path = Path("data/processed/training_manifest.json")
     demo_active = False
     if manifest_path.exists():
@@ -34,9 +37,13 @@ async def get_status():
         except Exception:
             pass
     return {
-        "desks_open": desks,
-        "open_alert_count": len(open_alerts),
-        "demo_active": demo_active,
+        "desks_open":        get_desks_open(),
+        "lanes_open":        get_lanes_open(),
+        "agents_open":       get_agents_open(),
+        "open_alert_count":  len(get_alerts(status="OPEN")),
+        "open_sec_count":    len(get_security_alerts(status="OPEN")),
+        "open_gate_count":   len(get_gate_alerts(status="OPEN")),
+        "demo_active":       demo_active,
     }
 
 

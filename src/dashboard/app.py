@@ -151,6 +151,7 @@ def fetch_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=4, show_spinner=False)
 def fetch_security_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
@@ -162,6 +163,7 @@ def fetch_security_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def fetch_security_forecast() -> pd.DataFrame:
     try:
         r = requests.get(f"{API_BASE}/security/forecast", timeout=5)
@@ -175,6 +177,7 @@ def fetch_security_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=4, show_spinner=False)
 def fetch_gate_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
@@ -186,6 +189,7 @@ def fetch_gate_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def fetch_gate_forecast() -> pd.DataFrame:
     try:
         r = requests.get(f"{API_BASE}/gate/forecast", timeout=5)
@@ -199,11 +203,16 @@ def fetch_gate_forecast() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-def api_online() -> bool:
+@st.cache_data(ttl=5, show_spinner=False)
+def fetch_sidebar_status() -> dict:
+    """One call that replaces 8 separate sidebar API requests."""
     try:
-        return requests.get(f"{API_BASE}/health", timeout=2).ok
+        r = requests.get(f"{API_BASE}/alerts/status", timeout=4)
+        if r.ok:
+            return r.json()
     except Exception:
-        return False
+        pass
+    return {}
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -214,18 +223,15 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-    online = api_online()
-    desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
-    current_desks = desk_resp["desks_open"] if desk_resp else 0
-    lane_resp = fetch_json(f"{API_BASE}/security/lanes")
-    current_lanes = lane_resp["lanes_open"] if lane_resp else 0
-    agent_resp = fetch_json(f"{API_BASE}/gate/agents")
-    current_agents = agent_resp["agents_open"] if agent_resp else 0
-    open_alerts = len(fetch_alerts("OPEN"))
-    open_sec_alerts = len(fetch_security_alerts("OPEN"))
-    open_gate_alerts = len(fetch_gate_alerts("OPEN"))
-    demo_status = fetch_json(f"{API_BASE}/demo/status")
-    demo_active = demo_status.get("demo_active", False) if demo_status else False
+    _s = fetch_sidebar_status()
+    online         = bool(_s)
+    current_desks  = _s.get("desks_open", 0)
+    current_lanes  = _s.get("lanes_open", 0)
+    current_agents = _s.get("agents_open", 0)
+    open_alerts    = _s.get("open_alert_count", 0)
+    open_sec_alerts= _s.get("open_sec_count", 0)
+    open_gate_alerts=_s.get("open_gate_count", 0)
+    demo_active    = _s.get("demo_active", False)
 
     dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     api_txt = "API ONLINE" if online else "API OFFLINE"

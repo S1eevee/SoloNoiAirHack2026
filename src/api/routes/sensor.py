@@ -43,6 +43,8 @@ async def ingest(payload: VS133Payload):
     """
     Configure the VS133-P in HTTP push mode and point it at:
         POST http://<your-server>:8000/sensor/ingest
+    Set zone="checkin" (default) or zone="security" in the payload to route
+    data to the correct checkpoint.
     """
     data = payload.normalize()
     save_reading(
@@ -50,10 +52,12 @@ async def ingest(payload: VS133Payload):
         timestamp=data["timestamp"],
         count_in=data["count_in"],
         count_out=data["count_out"],
+        zone=data["zone"],
     )
     return {
         "status": "ok",
         "device": data["device_eui"],
+        "zone": data["zone"],
         "window": data["timestamp"].strftime("%H:%M"),
         "count_in": data["count_in"],
         "count_out": data["count_out"],
@@ -65,9 +69,9 @@ async def ingest(payload: VS133Payload):
 # ---------------------------------------------------------------------------
 
 @router.get("/counts")
-async def counts(hours: int = 24):
+async def counts(hours: int = 24, zone: str = "checkin"):
     """Return sensor totals per 30-min window for the last N hours."""
-    df = get_recent_counts(hours=hours)
+    df = get_recent_counts(hours=hours, zone=zone)
     if df.empty:
         return []
     return df.to_dict(orient="records")
@@ -161,13 +165,7 @@ def _schedule_pax_by_window() -> dict:
         return {}
 
 
-@router.post("/simulate")
-async def simulate_day(date: Optional[str] = None):
-    """
-    Inject simulated VS133-P readings for every 30-min window of a day.
-    Uses the uploaded schedule to make counts realistic.
-    Pass ?date=2026-06-06 to simulate a specific date, defaults to today.
-    """
+def _simulate_zone(date: Optional[str], zone: str, pax_scale: float = 1.0) -> dict:
     if date:
         try:
             base = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -179,13 +177,13 @@ async def simulate_day(date: Optional[str] = None):
     schedule = _schedule_pax_by_window()
     injected = []
 
-    for slot in range(48):  # 48 × 30 min = full day
+    for slot in range(48):
         window = base + timedelta(minutes=30 * slot)
-        sched_pax = schedule.get(str(window.replace(tzinfo=None)), 0)
+        sched_pax = int(schedule.get(str(window.replace(tzinfo=None)), 0) * pax_scale)
         count_in, count_out = _pax_for_window(window, sched_pax)
 
         if count_in > 0:
-            save_reading(SIM_DEVICE_EUI, window, count_in, count_out)
+            save_reading(SIM_DEVICE_EUI, window, count_in, count_out, zone=zone)
             injected.append({
                 "window": window.strftime("%H:%M"),
                 "count_in": count_in,
@@ -196,32 +194,107 @@ async def simulate_day(date: Optional[str] = None):
     return {
         "status": "ok",
         "device": SIM_DEVICE_EUI,
+        "zone": zone,
         "date": base.strftime("%Y-%m-%d"),
         "windows_injected": len(injected),
         "readings": injected,
     }
 
 
+@router.post("/simulate")
+async def simulate_day(date: Optional[str] = None):
+    """Inject simulated check-in sensor readings for a full day."""
+    return _simulate_zone(date, zone="checkin")
+
+
 @router.post("/simulate/window")
 async def simulate_window():
-    """Inject one simulated reading for the current 30-min window (live demo tick)."""
+    """Inject one simulated check-in reading for the current 30-min window."""
     now = datetime.now(timezone.utc)
     window = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0)
-
     schedule = _schedule_pax_by_window()
     sched_pax = schedule.get(str(window.replace(tzinfo=None)), 0)
     count_in, count_out = _pax_for_window(window, sched_pax)
+    save_reading(SIM_DEVICE_EUI, window, count_in, count_out, zone="checkin")
+    return {"status": "ok", "device": SIM_DEVICE_EUI, "zone": "checkin",
+            "window": window.strftime("%H:%M"), "count_in": count_in, "count_out": count_out}
 
-    save_reading(SIM_DEVICE_EUI, window, count_in, count_out)
 
-    return {
-        "status": "ok",
-        "device": SIM_DEVICE_EUI,
-        "window": window.strftime("%H:%M"),
-        "count_in": count_in,
-        "count_out": count_out,
-        "based_on_schedule": sched_pax > 0,
-    }
+@router.post("/simulate/security")
+async def simulate_security_day(date: Optional[str] = None):
+    """
+    Inject simulated security sensor readings for a full day.
+    Counts are scaled by the configured flow_factor to reflect that not all
+    check-in passengers reach security at the same time.
+    """
+    try:
+        import yaml
+        from pathlib import Path as _P
+        cfg = yaml.safe_load((_P("config") / "thresholds.yaml").read_text())
+        factor = cfg.get("security", {}).get("flow_factor", 0.90)
+    except Exception:
+        factor = 0.90
+    return _simulate_zone(date, zone="security", pax_scale=factor)
+
+
+@router.post("/simulate/security/window")
+async def simulate_security_window():
+    """Inject one simulated security reading for the current 30-min window."""
+    try:
+        import yaml
+        from pathlib import Path as _P
+        cfg = yaml.safe_load((_P("config") / "thresholds.yaml").read_text())
+        factor = cfg.get("security", {}).get("flow_factor", 0.90)
+    except Exception:
+        factor = 0.90
+    now = datetime.now(timezone.utc)
+    window = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0)
+    schedule = _schedule_pax_by_window()
+    sched_pax = int(schedule.get(str(window.replace(tzinfo=None)), 0) * factor)
+    count_in, count_out = _pax_for_window(window, sched_pax)
+    save_reading(SIM_DEVICE_EUI, window, count_in, count_out, zone="security")
+    return {"status": "ok", "device": SIM_DEVICE_EUI, "zone": "security",
+            "window": window.strftime("%H:%M"), "count_in": count_in, "count_out": count_out}
+
+
+@router.post("/simulate/gate")
+async def simulate_gate_day(date: Optional[str] = None):
+    """
+    Inject simulated gate sensor readings for a full day.
+    Counts are scaled by both security and gate flow_factors (compounded).
+    """
+    try:
+        import yaml
+        from pathlib import Path as _P
+        cfg = yaml.safe_load((_P("config") / "thresholds.yaml").read_text())
+        sec_factor = cfg.get("security", {}).get("flow_factor", 0.90)
+        gate_factor = cfg.get("gate", {}).get("flow_factor", 0.98)
+        factor = sec_factor * gate_factor
+    except Exception:
+        factor = 0.88
+    return _simulate_zone(date, zone="gate", pax_scale=factor)
+
+
+@router.post("/simulate/gate/window")
+async def simulate_gate_window():
+    """Inject one simulated gate reading for the current 30-min window."""
+    try:
+        import yaml
+        from pathlib import Path as _P
+        cfg = yaml.safe_load((_P("config") / "thresholds.yaml").read_text())
+        sec_factor = cfg.get("security", {}).get("flow_factor", 0.90)
+        gate_factor = cfg.get("gate", {}).get("flow_factor", 0.98)
+        factor = sec_factor * gate_factor
+    except Exception:
+        factor = 0.88
+    now = datetime.now(timezone.utc)
+    window = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0)
+    schedule = _schedule_pax_by_window()
+    sched_pax = int(schedule.get(str(window.replace(tzinfo=None)), 0) * factor)
+    count_in, count_out = _pax_for_window(window, sched_pax)
+    save_reading(SIM_DEVICE_EUI, window, count_in, count_out, zone="gate")
+    return {"status": "ok", "device": SIM_DEVICE_EUI, "zone": "gate",
+            "window": window.strftime("%H:%M"), "count_in": count_in, "count_out": count_out}
 
 
 # ---------------------------------------------------------------------------

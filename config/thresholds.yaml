@@ -13,6 +13,38 @@ checkin:
     desks_to_open: 4
     message: "Open 4 check-in desks \u2014 HIGH LOAD"
     threshold: 200
+security:
+  baseline_lanes: 1
+  checkin_to_security_delay_min: 20
+  flow_factor: 0.90
+  level_1:
+    lanes_to_open: 2
+    message: Open 2 security lane(s)
+    threshold: 60
+  level_2:
+    lanes_to_open: 3
+    message: Open 3 security lanes
+    threshold: 100
+  level_3:
+    lanes_to_open: 4
+    message: "Open 4 security lanes \u2014 HIGH LOAD"
+    threshold: 150
+gate:
+  baseline_agents: 1
+  security_to_gate_delay_min: 30
+  flow_factor: 0.98
+  level_1:
+    agents_to_open: 2
+    message: Open 2 gate agent(s)
+    threshold: 40
+  level_2:
+    agents_to_open: 3
+    message: Open 3 gate agents
+    threshold: 80
+  level_3:
+    agents_to_open: 4
+    message: "Open 4 gate agents — HIGH LOAD"
+    threshold: 120
 peak_hours:
 - 6
 - 7

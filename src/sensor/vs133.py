@@ -13,6 +13,7 @@ from pydantic import BaseModel
 class VS133Payload(BaseModel):
     device_eui: str
     timestamp: Optional[int] = None       # unix ms or unix s — auto-detected
+    zone: str = "checkin"                 # "checkin" or "security"
 
     # Firmware variant A
     people_count_in: int = 0
@@ -37,6 +38,7 @@ class VS133Payload(BaseModel):
         return {
             "device_eui": self.device_eui,
             "timestamp": ts_dt,
+            "zone": self.zone,
             "count_in": count_in,
             "count_out": count_out,
         }

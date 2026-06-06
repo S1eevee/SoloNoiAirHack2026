@@ -19,12 +19,18 @@ def _conn() -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS sensor_readings (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             device_eui   TEXT    NOT NULL,
+            zone         TEXT    NOT NULL DEFAULT 'checkin',
             timestamp    TEXT    NOT NULL,
             window_start TEXT    NOT NULL,
             count_in     INTEGER NOT NULL,
             count_out    INTEGER NOT NULL
         )
     """)
+    # migrate existing rows that predate the zone column
+    try:
+        conn.execute("ALTER TABLE sensor_readings ADD COLUMN zone TEXT NOT NULL DEFAULT 'checkin'")
+    except Exception:
+        pass
     conn.commit()
     return conn
 
@@ -33,29 +39,30 @@ def _window_for(ts: datetime) -> datetime:
     return ts.replace(minute=0 if ts.minute < 30 else 30, second=0, microsecond=0)
 
 
-def save_reading(device_eui: str, timestamp: datetime, count_in: int, count_out: int) -> None:
+def save_reading(device_eui: str, timestamp: datetime, count_in: int, count_out: int,
+                 zone: str = "checkin") -> None:
     window = _window_for(timestamp)
     with _conn() as conn:
         conn.execute(
             "INSERT INTO sensor_readings "
-            "(device_eui, timestamp, window_start, count_in, count_out) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (device_eui, timestamp.isoformat(), window.isoformat(), count_in, count_out),
+            "(device_eui, zone, timestamp, window_start, count_in, count_out) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (device_eui, zone, timestamp.isoformat(), window.isoformat(), count_in, count_out),
         )
 
 
-def get_window_counts(window_start: datetime) -> pd.DataFrame:
+def get_window_counts(window_start: datetime, zone: str = "checkin") -> pd.DataFrame:
     window_end = window_start + timedelta(minutes=30)
     with _conn() as conn:
         return pd.read_sql_query(
             "SELECT * FROM sensor_readings "
-            "WHERE window_start >= ? AND window_start < ?",
+            "WHERE zone = ? AND window_start >= ? AND window_start < ?",
             conn,
-            params=(window_start.isoformat(), window_end.isoformat()),
+            params=(zone, window_start.isoformat(), window_end.isoformat()),
         )
 
 
-def get_recent_counts(hours: int = 24) -> pd.DataFrame:
+def get_recent_counts(hours: int = 24, zone: str = "checkin") -> pd.DataFrame:
     with _conn() as conn:
         return pd.read_sql_query(
             """
@@ -64,10 +71,10 @@ def get_recent_counts(hours: int = 24) -> pd.DataFrame:
                    SUM(count_out) AS total_out,
                    COUNT(*)       AS readings
             FROM sensor_readings
-            WHERE timestamp >= datetime('now', ?)
+            WHERE zone = ? AND timestamp >= datetime('now', ?)
             GROUP BY window_start
             ORDER BY window_start
             """,
             conn,
-            params=(f"-{hours} hours",),
+            params=(zone, f"-{hours} hours"),
         )

@@ -110,6 +110,54 @@ def fetch_alerts(status=None) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+def fetch_security_alerts(status=None) -> pd.DataFrame:
+    try:
+        params = {"status": status} if status else {}
+        r = requests.get(f"{API_BASE}/security/alerts", params=params, timeout=5)
+        if r.ok:
+            return pd.DataFrame(r.json())
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def fetch_security_forecast() -> pd.DataFrame:
+    try:
+        r = requests.get(f"{API_BASE}/security/forecast", timeout=5)
+        if r.ok:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["window_start"] = pd.to_datetime(df["window_start"])
+            return df
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def fetch_gate_alerts(status=None) -> pd.DataFrame:
+    try:
+        params = {"status": status} if status else {}
+        r = requests.get(f"{API_BASE}/gate/alerts", params=params, timeout=5)
+        if r.ok:
+            return pd.DataFrame(r.json())
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def fetch_gate_forecast() -> pd.DataFrame:
+    try:
+        r = requests.get(f"{API_BASE}/gate/forecast", timeout=5)
+        if r.ok:
+            df = pd.DataFrame(r.json())
+            if not df.empty:
+                df["window_start"] = pd.to_datetime(df["window_start"])
+            return df
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
 def api_online() -> bool:
     try:
         return requests.get(f"{API_BASE}/health", timeout=2).ok
@@ -127,17 +175,28 @@ with st.sidebar:
     online = api_online()
     desk_resp = fetch_json(f"{API_BASE}/alerts/desks")
     current_desks = desk_resp["desks_open"] if desk_resp else 0
+    lane_resp = fetch_json(f"{API_BASE}/security/lanes")
+    current_lanes = lane_resp["lanes_open"] if lane_resp else 0
+    agent_resp = fetch_json(f"{API_BASE}/gate/agents")
+    current_agents = agent_resp["agents_open"] if agent_resp else 0
     open_alerts = len(fetch_alerts("OPEN"))
+    open_sec_alerts = len(fetch_security_alerts("OPEN"))
+    open_gate_alerts = len(fetch_gate_alerts("OPEN"))
 
     status_dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     status_txt = "API online" if online else "API offline"
-    st.markdown(f"{status_dot} {status_txt} &nbsp;·&nbsp; **{current_desks}** desk(s) open &nbsp;·&nbsp; **{open_alerts}** alert(s)", unsafe_allow_html=True)
+    st.markdown(f"{status_dot} {status_txt}", unsafe_allow_html=True)
+    st.markdown(f"**{current_desks}** desk(s) &nbsp;·&nbsp; **{open_alerts}** check-in alert(s)", unsafe_allow_html=True)
+    st.markdown(f"**{current_lanes}** lane(s) &nbsp;·&nbsp; **{open_sec_alerts}** security alert(s)", unsafe_allow_html=True)
+    st.markdown(f"**{current_agents}** agent(s) &nbsp;·&nbsp; **{open_gate_alerts}** gate alert(s)", unsafe_allow_html=True)
     st.divider()
 
     nav_options = {
         "Train Model": "Train Model",
         "Forecast": "Forecast",
         f"Alerts ({open_alerts} open)" if open_alerts else "Alerts": "Alerts",
+        f"Security ({open_sec_alerts} open)" if open_sec_alerts else "Security": "Security",
+        f"Gate ({open_gate_alerts} open)" if open_gate_alerts else "Gate": "Gate",
         "Simulation": "Simulation",
         "Settings": "Settings",
     }
@@ -1241,6 +1300,529 @@ loop();
 </html>"""
 
     components.html(_SIM_HTML, height=860, scrolling=False)
+
+
+# ── Security ───────────────────────────────────────────────────────────────────
+
+elif page == "Security":
+    st.markdown("## Security Checkpoint")
+    st.caption("Passenger flow through security — derived from check-in forecast with a 20-min delay and 90% flow factor.")
+
+    # Lane state control
+    lane_resp = fetch_json(f"{API_BASE}/security/lanes")
+    current_lanes = lane_resp["lanes_open"] if lane_resp else 0
+
+    lc1, lc2, lc3 = st.columns([2, 1, 3])
+    with lc1:
+        new_lane_count = st.number_input("Lanes currently open", min_value=0, max_value=20, value=current_lanes)
+    with lc2:
+        st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+        if st.button("Update", key="update_lanes", use_container_width=True):
+            requests.post(f"{API_BASE}/security/lanes", json={"lanes_open": new_lane_count})
+            st.rerun()
+    with lc3:
+        st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    if st.button("Run Security Forecast & Generate Alerts", type="primary", use_container_width=True):
+        with st.spinner("Deriving security predictions from check-in…"):
+            r = requests.post(f"{API_BASE}/security/run", timeout=120)
+        if r.ok:
+            d = r.json()
+            st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+            st.rerun()
+        else:
+            st.error(f"Security forecast failed: {r.text}")
+
+    # Charts
+    sec_forecast = fetch_security_forecast()
+    checkin_forecast = fetch_forecast()
+
+    if not sec_forecast.empty:
+        st.divider()
+
+        peak_sec = int(sec_forecast["predicted_load"].max())
+        total_sec = int(sec_forecast["predicted_load"].sum())
+        open_sec = len(fetch_security_alerts("OPEN"))
+
+        st.markdown(f"""
+<div class="kpi-row">
+  <div class="kpi-box"><div class="kpi-val">{len(sec_forecast)}</div><div class="kpi-lbl">Time windows</div></div>
+  <div class="kpi-box"><div class="kpi-val">{peak_sec}</div><div class="kpi-lbl">Peak pax / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{total_sec:,}</div><div class="kpi-lbl">Total pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{open_sec}</div><div class="kpi-lbl">Open alerts</div></div>
+</div>""", unsafe_allow_html=True)
+
+        fig = go.Figure()
+
+        # Check-in reference line
+        if not checkin_forecast.empty:
+            fig.add_trace(go.Scatter(
+                x=checkin_forecast["window_start"],
+                y=checkin_forecast["predicted_load"],
+                name="Check-in load",
+                line=dict(color="#3a7bd5", width=1.5, dash="dot"),
+                opacity=0.5,
+                hovertemplate="<b>Check-in %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+            ))
+
+        # Security bars
+        fig.add_trace(go.Bar(
+            x=sec_forecast["window_start"],
+            y=sec_forecast["predicted_load"],
+            name="Security load",
+            marker=dict(
+                color=sec_forecast["predicted_load"],
+                colorscale=[[0, "#1a4a6a"], [0.5, "#c07830"], [1, "#c03030"]],
+                showscale=False,
+            ),
+            hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+        ))
+
+        # Security threshold lines
+        thresholds = fetch_json(f"{API_BASE}/thresholds")
+        sec_cfg = thresholds.get("security", {}) if thresholds else {}
+        sec_colors = {"level_1": "#f0c040", "level_2": "#f08040", "level_3": "#e05252"}
+        for key, color in sec_colors.items():
+            lvl = sec_cfg.get(key)
+            if lvl:
+                fig.add_hline(
+                    y=lvl["threshold"],
+                    line_dash="dot",
+                    line_color=color,
+                    line_width=1.5,
+                    annotation_text=f"L{key[-1]}: {lvl['threshold']} pax",
+                    annotation_position="right",
+                    annotation_font_color=color,
+                    annotation_font_size=11,
+                )
+
+        fig.update_layout(
+            title="Security Checkpoint Load — 30-min Windows (20-min offset from check-in)",
+            plot_bgcolor="#0f1117",
+            paper_bgcolor="#0f1117",
+            font_color="#e0e0e0",
+            xaxis=dict(gridcolor="#2a2d3a", title=""),
+            yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
+            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            margin=dict(l=10, r=80, t=40, b=10),
+            height=340,
+            barmode="overlay",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        with st.expander("Raw data table", expanded=False):
+            st.dataframe(
+                sec_forecast.rename(columns={
+                    "window_start": "Window",
+                    "checkin_load": "Check-in Pax",
+                    "predicted_load": "Security Pax",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+    else:
+        st.info("No security forecast yet — click Run Security Forecast above.")
+
+    st.divider()
+    st.markdown("### Security Sensor Data")
+    st.caption("VS133-P sensor at the security entrance — actual counts vs predicted load.")
+
+    scol1, scol2, scol3 = st.columns(3)
+    with scol1:
+        if st.button("Simulate Security Sensor (full day)", use_container_width=True):
+            with st.spinner("Injecting security sensor data…"):
+                r = requests.post(f"{API_BASE}/security/sensor/simulate", timeout=30)
+            if r.ok:
+                d = r.json()
+                st.success(f"{d.get('windows_injected', 0)} windows injected")
+                st.rerun()
+            else:
+                st.error(f"Failed: {r.text}")
+    with scol2:
+        if st.button("Reconcile vs Predictions", use_container_width=True):
+            with st.spinner("Reconciling…"):
+                r = requests.post(f"{API_BASE}/security/sensor/reconcile", timeout=30)
+            if r.ok:
+                st.session_state["sec_reconcile"] = r.json()
+                st.rerun()
+            else:
+                st.error(f"Failed: {r.text}")
+    with scol3:
+        if st.button("Auto-calibrate Flow Factor", use_container_width=True, help="Derives empirical flow_factor from matched check-in vs security sensor counts"):
+            with st.spinner("Calibrating…"):
+                r = requests.post(f"{API_BASE}/security/sensor/calibrate", timeout=30)
+            if r.ok:
+                d = r.json()
+                if d.get("status") == "calibrated":
+                    st.success(f"Flow factor updated: {d['old_flow_factor']} → **{d['new_flow_factor']}** ({d['windows_matched']} windows)")
+                else:
+                    st.warning(f"Not enough data yet ({d.get('windows_matched', 0)} windows matched, need ≥5)")
+            else:
+                st.error(f"Failed: {r.text}")
+
+    # sensor counts chart
+    sec_counts_raw = fetch_json(f"{API_BASE}/security/sensor/counts?hours=24")
+    if sec_counts_raw:
+        sec_counts = pd.DataFrame(sec_counts_raw)
+        sec_counts["window_start"] = pd.to_datetime(sec_counts["window_start"])
+
+        fig_s = go.Figure()
+        fig_s.add_trace(go.Bar(
+            x=sec_counts["window_start"],
+            y=sec_counts["total_in"],
+            name="Actual (sensor)",
+            marker_color="#52c07a",
+            hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (actual)<extra></extra>",
+        ))
+        if not sec_forecast.empty:
+            fig_s.add_trace(go.Scatter(
+                x=sec_forecast["window_start"],
+                y=sec_forecast["predicted_load"],
+                name="Predicted",
+                line=dict(color="#f0a500", width=2, dash="dot"),
+                hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (predicted)<extra></extra>",
+            ))
+        fig_s.update_layout(
+            title="Security Sensor: Actual vs Predicted",
+            plot_bgcolor="#0f1117", paper_bgcolor="#0f1117", font_color="#e0e0e0",
+            xaxis=dict(gridcolor="#2a2d3a"), yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
+            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
+        )
+        st.plotly_chart(fig_s, use_container_width=True)
+
+    # reconcile results
+    if "sec_reconcile" in st.session_state:
+        rec = pd.DataFrame(st.session_state["sec_reconcile"])
+        if not rec.empty:
+            confirmed = len(rec[rec["status"] == "confirmed"])
+            escalated = len(rec[rec["status"] == "escalated"])
+            no_data   = len(rec[rec["status"] == "no_sensor_data"])
+            st.markdown(f"""
+<div class="kpi-row">
+  <div class="kpi-box"><div class="kpi-val" style="color:#52c07a">{confirmed}</div><div class="kpi-lbl">Confirmed</div></div>
+  <div class="kpi-box"><div class="kpi-val" style="color:#e05252">{escalated}</div><div class="kpi-lbl">Escalated</div></div>
+  <div class="kpi-box"><div class="kpi-val" style="color:#888">{no_data}</div><div class="kpi-lbl">No sensor data</div></div>
+</div>""", unsafe_allow_html=True)
+            with st.expander("Reconcile detail", expanded=False):
+                st.dataframe(rec, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.markdown("### Security Lane Alerts")
+
+    emp_name = st.text_input("Your name (audit trail)", value=st.session_state.get("employee_name", ""), placeholder="Enter your name…", key="sec_emp")
+    if emp_name:
+        st.session_state["employee_name"] = emp_name
+
+    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+    stab_open, stab_ack, stab_all = st.tabs(["Open", "Acknowledged", "All"])
+
+    def render_security_alerts(df: pd.DataFrame, show_ack: bool = False):
+        if df.empty:
+            st.markdown("<div style='color:#666; padding:20px 0'>No alerts in this category.</div>", unsafe_allow_html=True)
+            return
+        for _, row in df.iterrows():
+            alert_type  = row.get("type", "")
+            status      = row.get("status", "OPEN")
+            lanes_add   = row.get("lanes_to_add") or 0
+            lanes_close = row.get("lanes_to_close") or 0
+            lanes_open  = row.get("lanes_to_open") or 0
+            load        = row.get("predicted_load", "?")
+            win         = str(row.get("window_start", ""))[:16]
+
+            if status == "ACKNOWLEDGED":
+                card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
+            elif alert_type == "security_close":
+                card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Close {lanes_close} lane(s)"
+            else:
+                card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Open {lanes_add} more lane(s)"
+
+            col_card, col_btn = st.columns([5, 1])
+            with col_card:
+                st.markdown(f"""
+<div class="alert-card {card_cls}">
+  <div class="alert-title">{row['message']}</div>
+  <span class="desk-tag {tag_cls}">{tag_txt}</span>
+  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax &nbsp;·&nbsp; {lanes_open} lane(s) needed</div>
+</div>""", unsafe_allow_html=True)
+            with col_btn:
+                if show_ack and status == "OPEN":
+                    st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
+                    emp = st.session_state.get("employee_name", "employee") or "employee"
+                    if st.button("Confirm", key=f"sec_ack_{row['id']}"):
+                        requests.post(f"{API_BASE}/security/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        st.rerun()
+
+    with stab_open:
+        render_security_alerts(fetch_security_alerts("OPEN"), show_ack=True)
+    with stab_ack:
+        render_security_alerts(fetch_security_alerts("ACKNOWLEDGED"))
+    with stab_all:
+        render_security_alerts(fetch_security_alerts())
+
+
+# ── Gate ───────────────────────────────────────────────────────────────────────
+
+elif page == "Gate":
+    st.markdown("## Gate (Boarding Control)")
+    st.caption("Ticket scan / boarding agents — derived from security forecast with a 30-min delay and 98% flow factor.")
+
+    # Agent state control
+    agent_resp = fetch_json(f"{API_BASE}/gate/agents")
+    current_agents = agent_resp["agents_open"] if agent_resp else 0
+
+    gc1, gc2, gc3 = st.columns([2, 1, 3])
+    with gc1:
+        new_agent_count = st.number_input("Agents currently deployed", min_value=0, max_value=20, value=current_agents)
+    with gc2:
+        st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+        if st.button("Update", key="update_agents", use_container_width=True):
+            requests.post(f"{API_BASE}/gate/agents", json={"agents_open": new_agent_count})
+            st.rerun()
+    with gc3:
+        st.markdown(f"<div style='margin-top:32px; color:#888; font-size:0.85rem'>Currently tracking <b style='color:#e0e0e0'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    if st.button("Run Gate Forecast & Generate Alerts", type="primary", use_container_width=True):
+        with st.spinner("Deriving gate predictions from security…"):
+            r = requests.post(f"{API_BASE}/gate/run", timeout=120)
+        if r.ok:
+            d = r.json()
+            st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
+            st.rerun()
+        else:
+            st.error(f"Gate forecast failed: {r.text}")
+
+    # Charts
+    gate_forecast = fetch_gate_forecast()
+    sec_forecast = fetch_security_forecast()
+
+    if not gate_forecast.empty:
+        st.divider()
+
+        peak_gate = int(gate_forecast["predicted_load"].max())
+        total_gate = int(gate_forecast["predicted_load"].sum())
+        open_gate = len(fetch_gate_alerts("OPEN"))
+
+        st.markdown(f"""
+<div class="kpi-row">
+  <div class="kpi-box"><div class="kpi-val">{len(gate_forecast)}</div><div class="kpi-lbl">Time windows</div></div>
+  <div class="kpi-box"><div class="kpi-val">{peak_gate}</div><div class="kpi-lbl">Peak pax / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{total_gate:,}</div><div class="kpi-lbl">Total pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{open_gate}</div><div class="kpi-lbl">Open alerts</div></div>
+</div>""", unsafe_allow_html=True)
+
+        fig = go.Figure()
+
+        # Security reference line
+        if not sec_forecast.empty:
+            fig.add_trace(go.Scatter(
+                x=sec_forecast["window_start"],
+                y=sec_forecast["predicted_load"],
+                name="Security load",
+                line=dict(color="#c07830", width=1.5, dash="dot"),
+                opacity=0.5,
+                hovertemplate="<b>Security %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+            ))
+
+        # Gate bars
+        fig.add_trace(go.Bar(
+            x=gate_forecast["window_start"],
+            y=gate_forecast["predicted_load"],
+            name="Gate load",
+            marker=dict(
+                color=gate_forecast["predicted_load"],
+                colorscale=[[0, "#1a3a6a"], [0.5, "#8030c0"], [1, "#c03080"]],
+                showscale=False,
+            ),
+            hovertemplate="<b>Gate %{x|%H:%M}</b><br>%{y} pax<extra></extra>",
+        ))
+
+        # Gate threshold lines
+        thresholds = fetch_json(f"{API_BASE}/thresholds")
+        gate_cfg = thresholds.get("gate", {}) if thresholds else {}
+        gate_colors = {"level_1": "#f0c040", "level_2": "#f08040", "level_3": "#e05252"}
+        for key, color in gate_colors.items():
+            lvl = gate_cfg.get(key)
+            if lvl:
+                fig.add_hline(
+                    y=lvl["threshold"],
+                    line_dash="dot",
+                    line_color=color,
+                    line_width=1.5,
+                    annotation_text=f"L{key[-1]}: {lvl['threshold']} pax",
+                    annotation_position="right",
+                    annotation_font_color=color,
+                    annotation_font_size=11,
+                )
+
+        fig.update_layout(
+            title="Gate Boarding Load — 30-min Windows (30-min offset from security)",
+            plot_bgcolor="#0f1117",
+            paper_bgcolor="#0f1117",
+            font_color="#e0e0e0",
+            xaxis=dict(gridcolor="#2a2d3a", title=""),
+            yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
+            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            margin=dict(l=10, r=80, t=40, b=10),
+            height=340,
+            barmode="overlay",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        with st.expander("Raw data table", expanded=False):
+            st.dataframe(
+                gate_forecast.rename(columns={
+                    "window_start": "Window",
+                    "security_load": "Security Pax",
+                    "predicted_load": "Gate Pax",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+    else:
+        st.info("No gate forecast yet — click Run Gate Forecast above (requires security forecast first).")
+
+    st.divider()
+    st.markdown("### Gate Sensor Data")
+    st.caption("VS133-P sensor at the boarding gate — actual scanned counts vs predicted load.")
+
+    gcol1, gcol2, gcol3 = st.columns(3)
+    with gcol1:
+        if st.button("Simulate Gate Sensor (full day)", use_container_width=True):
+            with st.spinner("Injecting gate sensor data…"):
+                r = requests.post(f"{API_BASE}/gate/sensor/simulate", timeout=30)
+            if r.ok:
+                d = r.json()
+                st.success(f"{d.get('windows_injected', 0)} windows injected")
+                st.rerun()
+            else:
+                st.error(f"Failed: {r.text}")
+    with gcol2:
+        if st.button("Reconcile vs Predictions", key="gate_reconcile_btn", use_container_width=True):
+            with st.spinner("Reconciling…"):
+                r = requests.post(f"{API_BASE}/gate/sensor/reconcile", timeout=30)
+            if r.ok:
+                st.session_state["gate_reconcile"] = r.json()
+                st.rerun()
+            else:
+                st.error(f"Failed: {r.text}")
+    with gcol3:
+        if st.button("Auto-calibrate Flow Factor", key="gate_calibrate_btn", use_container_width=True,
+                     help="Derives empirical gate flow_factor from matched security vs gate sensor counts"):
+            with st.spinner("Calibrating…"):
+                r = requests.post(f"{API_BASE}/gate/sensor/calibrate", timeout=30)
+            if r.ok:
+                d = r.json()
+                if d.get("status") == "calibrated":
+                    st.success(f"Gate flow factor updated: {d['old_flow_factor']} → **{d['new_flow_factor']}** ({d['windows_matched']} windows)")
+                else:
+                    st.warning(f"Not enough data yet ({d.get('windows_matched', 0)} windows matched, need ≥5)")
+            else:
+                st.error(f"Failed: {r.text}")
+
+    # sensor counts chart
+    gate_counts_raw = fetch_json(f"{API_BASE}/gate/sensor/counts?hours=24")
+    if gate_counts_raw:
+        gate_counts = pd.DataFrame(gate_counts_raw)
+        gate_counts["window_start"] = pd.to_datetime(gate_counts["window_start"])
+
+        fig_g = go.Figure()
+        fig_g.add_trace(go.Bar(
+            x=gate_counts["window_start"],
+            y=gate_counts["total_in"],
+            name="Actual (sensor)",
+            marker_color="#a052e0",
+            hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (actual)<extra></extra>",
+        ))
+        if not gate_forecast.empty:
+            fig_g.add_trace(go.Scatter(
+                x=gate_forecast["window_start"],
+                y=gate_forecast["predicted_load"],
+                name="Predicted",
+                line=dict(color="#f0a500", width=2, dash="dot"),
+                hovertemplate="<b>%{x|%H:%M}</b><br>%{y} pax (predicted)<extra></extra>",
+            ))
+        fig_g.update_layout(
+            title="Gate Sensor: Actual vs Predicted",
+            plot_bgcolor="#0f1117", paper_bgcolor="#0f1117", font_color="#e0e0e0",
+            xaxis=dict(gridcolor="#2a2d3a"), yaxis=dict(gridcolor="#2a2d3a", title="Passengers"),
+            legend=dict(bgcolor="#1e2130", bordercolor="#2a2d3a"),
+            margin=dict(l=10, r=10, t=40, b=10), height=260, barmode="overlay",
+        )
+        st.plotly_chart(fig_g, use_container_width=True)
+
+    # reconcile results
+    if "gate_reconcile" in st.session_state:
+        rec = pd.DataFrame(st.session_state["gate_reconcile"])
+        if not rec.empty:
+            confirmed = len(rec[rec["status"] == "confirmed"])
+            escalated = len(rec[rec["status"] == "escalated"])
+            no_data   = len(rec[rec["status"] == "no_sensor_data"])
+            st.markdown(f"""
+<div class="kpi-row">
+  <div class="kpi-box"><div class="kpi-val" style="color:#52c07a">{confirmed}</div><div class="kpi-lbl">Confirmed</div></div>
+  <div class="kpi-box"><div class="kpi-val" style="color:#e05252">{escalated}</div><div class="kpi-lbl">Escalated</div></div>
+  <div class="kpi-box"><div class="kpi-val" style="color:#888">{no_data}</div><div class="kpi-lbl">No sensor data</div></div>
+</div>""", unsafe_allow_html=True)
+            with st.expander("Reconcile detail", expanded=False):
+                st.dataframe(rec, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.markdown("### Gate Agent Alerts")
+
+    emp_name = st.text_input("Your name (audit trail)", value=st.session_state.get("employee_name", ""), placeholder="Enter your name…", key="gate_emp")
+    if emp_name:
+        st.session_state["employee_name"] = emp_name
+
+    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+    gtab_open, gtab_ack, gtab_all = st.tabs(["Open", "Acknowledged", "All"])
+
+    def render_gate_alerts(df: pd.DataFrame, show_ack: bool = False):
+        if df.empty:
+            st.markdown("<div style='color:#666; padding:20px 0'>No alerts in this category.</div>", unsafe_allow_html=True)
+            return
+        for _, row in df.iterrows():
+            alert_type   = row.get("type", "")
+            status       = row.get("status", "OPEN")
+            agents_add   = row.get("agents_to_add") or 0
+            agents_close = row.get("agents_to_close") or 0
+            agents_open  = row.get("agents_to_open") or 0
+            load         = row.get("predicted_load", "?")
+            win          = str(row.get("window_start", ""))[:16]
+
+            if status == "ACKNOWLEDGED":
+                card_cls, tag_cls, tag_txt = "alert-ack", "desk-ok", "✓ Acknowledged"
+            elif alert_type == "gate_close":
+                card_cls, tag_cls, tag_txt = "alert-close", "desk-close", f"Release {agents_close} agent(s)"
+            else:
+                card_cls, tag_cls, tag_txt = "alert-open", "desk-open", f"Deploy {agents_add} more agent(s)"
+
+            col_card, col_btn = st.columns([5, 1])
+            with col_card:
+                st.markdown(f"""
+<div class="alert-card {card_cls}">
+  <div class="alert-title">{row['message']}</div>
+  <span class="desk-tag {tag_cls}">{tag_txt}</span>
+  <div class="alert-sub">Window: {win} &nbsp;·&nbsp; {load} pax &nbsp;·&nbsp; {agents_open} agent(s) needed</div>
+</div>""", unsafe_allow_html=True)
+            with col_btn:
+                if show_ack and status == "OPEN":
+                    st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
+                    emp = st.session_state.get("employee_name", "employee") or "employee"
+                    if st.button("Confirm", key=f"gate_ack_{row['id']}"):
+                        requests.post(f"{API_BASE}/gate/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        st.rerun()
+
+    with gtab_open:
+        render_gate_alerts(fetch_gate_alerts("OPEN"), show_ack=True)
+    with gtab_ack:
+        render_gate_alerts(fetch_gate_alerts("ACKNOWLEDGED"))
+    with gtab_all:
+        render_gate_alerts(fetch_gate_alerts())
 
 
 # ── Settings ───────────────────────────────────────────────────────────────────

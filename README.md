@@ -1,165 +1,281 @@
 # SoloNoiAirHack2026 — Passenger Flow Predictor
 
-AirHack 2026 MVP: XGBoost-powered passenger load forecasting with check-in desk alerts, a FastAPI backend, and a Streamlit employee dashboard.
+**AirHack 2026** — An AI-powered passenger load forecasting system for airport check-in operations. Built for Iași Airport (T4). Predicts how many passengers will arrive at check-in per 30-minute window and automatically alerts staff when extra desks need to be opened.
+
+---
+
+## What It Does
+
+1. **Airport admin uploads** a historical flight schedule CSV (past weeks/months)
+2. **XGBoost model trains** on that data, learning peak hours, day-of-week patterns, and delay impacts
+3. **Admin uploads** tomorrow's scheduled flights
+4. **Model predicts** passenger load per 30-minute window for the upcoming day
+5. **Alert engine** compares predictions to configurable thresholds → generates check-in desk alerts
+6. **Employees see** alerts on the dashboard and acknowledge them (audit trail)
+7. **Claude AI** summarises the forecast in natural language and answers manager questions
+
+---
 
 ## Architecture
 
 ```
-Flight CSV → Cleaner → Feature Builder → XGBoost → Predictions
-                                                         ↓
-                                                  Alert Engine → SQLite
-                                                         ↓
-                                               FastAPI (REST API)
-                                                    ↙       ↘
-                                          Streamlit        Claude LLM
-                                          Dashboard        Insights
+Flight CSV (historical)
+        │
+        ▼
+  src/data/loader.py       ← auto-detects CSV format, delimiter, encoding
+        │
+        ▼
+  src/data/cleaner.py      ← normalises any airport column naming to internal schema
+        │
+        ▼
+  src/data/features.py     ← aggregates flights into 30-min window feature matrix
+        │
+        ▼
+  src/model/train.py       ← trains XGBoost regressor → models/model.pkl
+        │
+Flight CSV (upcoming)
+        │
+        ▼
+  src/model/predict.py     ← predicts passenger load per window
+        │
+        ▼
+  src/alerts/engine.py     ← threshold comparison → alert list
+        │
+        ▼
+  src/alerts/state.py      ← persists alerts to SQLite (OPEN→ACK→RESOLVED)
+        │
+        ▼
+  src/api/app.py           ← FastAPI REST backend (port 8000)
+        │
+        ├──────────────────────────────┐
+        ▼                              ▼
+src/dashboard/app.py        src/llm/insights.py
+  Streamlit UI (8501)         Claude claude-opus-4-8
+  Employee alerts             Natural language summary
+  Forecast chart
 ```
 
-## Stack
+---
 
-| Layer | Technology |
-|---|---|
-| Prediction | XGBoost (regression) |
-| Backend | FastAPI + uvicorn |
-| Frontend | Streamlit |
-| LLM | Claude claude-opus-4-8 (Anthropic SDK) |
-| Persistence | SQLite |
-| Config | thresholds.yaml |
+## Tech Stack
 
-## Input Schema
+| Layer | Technology | Why |
+|---|---|---|
+| Prediction | XGBoost (regression) | Non-linear, handles tabular data, feature importance |
+| Backend | FastAPI + uvicorn | Async, fast, auto-generated docs at `/docs` |
+| Frontend | Streamlit | Rapid UI, no frontend build step |
+| LLM | Claude claude-opus-4-8 (Anthropic SDK) | Adaptive thinking, natural language insights |
+| Database | SQLite | Zero-config, embedded, sufficient for airport scale |
+| Config | thresholds.yaml | Human-readable, editable via UI or directly |
 
-`flight_schedule.csv`:
-```
-flight_id | scheduled_time       | pax_count | delay_min | checkin_desks
-AA101     | 2026-06-06 06:00:00  | 210       | 10        | 4
-```
-
-## Predicted Output
-
-```
-window_start  | predicted_load
-07:00         | 340
-07:30         | 210
-08:00         | 480
-```
-
-## Alert Output
-
-```
-id | type    | message                                    | status
-1  | checkin | Open 2 extra check-in desks at 07:00 ...  | OPEN
-2  | checkin | Open 4 extra check-in desks at 08:00 ...  | OPEN
-```
+---
 
 ## Quick Start
 
-### 1. Install dependencies
-
+### 1. Clone and install
 ```bash
+git clone https://github.com/S1eevee/SoloNoiAirHack2026.git
 cd SoloNoiAirHack2026
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
-### 2. Set Anthropic API key (for LLM insights)
-
+### 2. Start the API (Terminal 1)
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+python3 -m uvicorn src.api.app:app --reload --port 8000
 ```
 
-### 3. Train + predict + generate alerts (CLI)
-
+### 3. Start the dashboard (Terminal 2)
 ```bash
-python pipeline.py run --schedule data/sample/sample_flights.csv
+python3 -m streamlit run src/dashboard/app.py
 ```
 
-### 4. Start the API server
+### 4. Open the dashboard
+Go to **http://localhost:8501**
 
-```bash
-uvicorn src.api.app:app --reload --port 8000
-```
+### 5. Load data and run
+1. **Train Model tab** → upload historical flight CSV → click **Train Model**
+2. **Forecast tab** → upload tomorrow's schedule → click **Run Forecast & Generate Alerts**
+3. **Alerts tab** → employees see and acknowledge check-in desk alerts
 
-### 5. Start the employee dashboard
+---
 
-```bash
-streamlit run src/dashboard/app.py
-```
+## Dashboard Tabs
 
-Open http://localhost:8501 in your browser.
+| Tab | Who uses it | What it does |
+|---|---|---|
+| **Train Model** | Airport admin | Upload historical data, train XGBoost, view MAE/RMSE/MAPE |
+| **Forecast** | Operations manager | Upload upcoming schedule, run prediction, view load chart |
+| **Alerts** | Check-in supervisors | See OPEN alerts, acknowledge with name (audit trail) |
+| **AI Insights** | Manager | Ask Claude questions about the forecast in natural language |
+| **Settings** | Admin | Configure passenger load thresholds for all 3 alert levels |
+
+---
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/data/upload` | Upload flight schedule CSV |
-| GET | `/forecast` | Get predictions for uploaded schedule |
-| POST | `/forecast/run` | Train + predict + generate alerts |
-| GET | `/alerts` | List alerts (filter by `?status=OPEN`) |
-| POST | `/alerts/{id}/acknowledge` | Employee acknowledges an alert |
-| POST | `/alerts/{id}/resolve` | Mark alert resolved |
-| GET | `/thresholds` | Get current alert thresholds |
-| POST | `/thresholds` | Update thresholds (manager) |
-| POST | `/insights` | Get Claude LLM operational insights |
 | GET | `/health` | Health check |
+| POST | `/data/upload/training` | Upload historical CSV (appends + deduplicates) |
+| POST | `/data/upload/schedule` | Upload upcoming schedule |
+| GET | `/data/training/info` | Training dataset stats |
+| GET | `/data/schedule/info` | Schedule dataset stats |
+| POST | `/forecast/train` | Train XGBoost on historical data |
+| POST | `/forecast/run` | Predict on schedule + generate alerts |
+| GET | `/forecast` | Get latest predictions |
+| GET | `/alerts` | List alerts (`?status=OPEN\|ACKNOWLEDGED\|RESOLVED`) |
+| POST | `/alerts/{id}/acknowledge` | Acknowledge an alert (pass `employee` name) |
+| POST | `/alerts/{id}/resolve` | Resolve an alert |
+| GET | `/thresholds` | Get current thresholds |
+| POST | `/thresholds` | Update thresholds |
+| POST | `/insights` | Get Claude AI operational summary |
 
-## CLI Commands
+Full interactive docs: **http://localhost:8000/docs**
+
+---
+
+## Alert Thresholds
+
+| Level | Trigger | Action |
+|---|---|---|
+| 1 | ≥ 150 pax in window | Open 1 extra check-in desk |
+| 2 | ≥ 300 pax in window | Open 2 extra check-in desks |
+| 3 | ≥ 500 pax in window | Open 4 extra check-in desks — HIGH LOAD |
+
+Configurable via **Settings tab** or `config/thresholds.yaml`.
+
+---
+
+## Input CSV Format
+
+The system accepts any airport CSV with flight data. Supported column names:
+
+| Data | Accepted column names |
+|---|---|
+| Departure flight ID | `dep_flight`, `departure_flight`, `flight_id` |
+| Departure time | `dep_time`, `departure_time`, `scheduled_time`, `etd`, `std` |
+| Departure pax | `dep_pax`, `departure_pax`, `pax_count` |
+| Arrival flight ID | `arr_flight`, `arrival_flight` |
+| Arrival time | `arr_time`, `arrival_time`, `eta`, `sta` |
+| Arrival pax | `arr_pax`, `arrival_pax` |
+
+Supported time formats: `2026-06-06 14:30:00`, `14:30`, `14:30/06`, `23:50/31`  
+Supported delimiters: comma, semicolon, tab, pipe (auto-detected)
+
+---
+
+## CLI Usage
 
 ```bash
-# Train model only
-python pipeline.py train --schedule data/sample/sample_flights.csv
+# Train on historical data
+python3 pipeline.py train --schedule data/sample/sample_flights.csv
 
 # Predict (model must exist)
-python pipeline.py predict --schedule data/sample/sample_flights.csv
+python3 pipeline.py predict --schedule data/sample/sample_flights.csv
 
-# Full pipeline: train + predict + alerts
-python pipeline.py run --schedule data/sample/sample_flights.csv
+# Full pipeline: train + predict + generate alerts
+python3 pipeline.py run --schedule data/sample/sample_flights.csv
 
-# Get AI insights
-python pipeline.py insights --schedule data/sample/sample_flights.csv --question "Which hour needs most desks?"
+# Get AI insights (requires ANTHROPIC_API_KEY or uses fallback)
+python3 pipeline.py insights --schedule data/sample/sample_flights.csv
+python3 pipeline.py insights --schedule data/sample/sample_flights.csv --question "When is the busiest hour?"
 ```
+
+---
+
+## AI Insights (Claude)
+
+The AI Insights tab works in two modes:
+
+| Mode | Requirement | Output |
+|---|---|---|
+| **Claude mode** | Anthropic API key | Full natural language analysis with adaptive thinking |
+| **Fallback mode** | Nothing | Auto-generated summary: top 3 windows, risk flags, staffing recs |
+
+To use Claude: enter your API key in the sidebar (console.anthropic.com) or set `ANTHROPIC_API_KEY` environment variable. No key = fallback mode, which is fully presentable for demos.
+
+---
 
 ## Project Structure
 
 ```
 SoloNoiAirHack2026/
+├── config/
+│   ├── thresholds.yaml        # alert thresholds (editable via UI)
+│   └── SKILL.md
 ├── data/
-│   ├── processed/          # uploaded schedules land here
-│   └── sample/
-│       └── sample_flights.csv
+│   ├── processed/             # auto-generated, git-ignored
+│   │   ├── training_data.csv  # accumulated historical flights
+│   │   ├── uploaded_schedule.csv  # upcoming schedule
+│   │   └── alerts.db          # SQLite alert store
+│   ├── raw/                   # drop raw files here
+│   ├── sample/
+│   │   └── sample_flights.csv # 38-flight demo CSV
+│   └── SKILL.md
+├── models/
+│   └── model.pkl              # trained XGBoost (git-ignored, regenerated locally)
 ├── src/
 │   ├── data/
-│   │   ├── loader.py       # read CSV
-│   │   ├── cleaner.py      # validate + normalize
-│   │   └── features.py     # 30-min window aggregation
+│   │   ├── loader.py          # CSV → DataFrame
+│   │   ├── cleaner.py         # normalise columns + parse times
+│   │   └── features.py        # 30-min window aggregation
 │   ├── model/
-│   │   ├── train.py        # XGBoost training
-│   │   ├── predict.py      # inference
-│   │   └── evaluate.py     # MAE / RMSE / MAPE
+│   │   ├── train.py           # XGBoost fit + save
+│   │   ├── predict.py         # load model + infer
+│   │   └── evaluate.py        # MAE / RMSE / MAPE
 │   ├── alerts/
-│   │   ├── engine.py       # threshold logic → alerts
-│   │   └── state.py        # SQLite persistence
+│   │   ├── engine.py          # predictions → alerts
+│   │   └── state.py           # SQLite CRUD
 │   ├── llm/
-│   │   └── insights.py     # Claude API integration
+│   │   └── insights.py        # Claude API + fallback
 │   ├── api/
-│   │   ├── app.py          # FastAPI app
-│   │   └── routes/         # data, forecast, alerts, thresholds, insights
+│   │   ├── app.py             # FastAPI app
+│   │   └── routes/
+│   │       ├── data.py
+│   │       ├── forecast.py
+│   │       ├── alerts.py
+│   │       ├── thresholds.py
+│   │       └── insights.py
 │   └── dashboard/
-│       └── app.py          # Streamlit employee dashboard
-├── models/
-│   └── model.pkl           # trained XGBoost (generated)
-├── config/
-│   └── thresholds.yaml     # alert thresholds config
-├── pipeline.py             # CLI entry point
-└── requirements.txt
+│       └── app.py             # Streamlit UI
+├── pipeline.py                # CLI entry point
+├── requirements.txt
+└── README.md
 ```
 
-## Alert Thresholds (configurable via UI or API)
+---
 
-| Level | Passenger Load | Action |
-|---|---|---|
-| 1 | ≥ 150 pax | Open 1 extra check-in desk |
-| 2 | ≥ 300 pax | Open 2 extra check-in desks |
-| 3 | ≥ 500 pax | Open 4 extra check-in desks (HIGH LOAD) |
+## XGBoost Model Details
 
-## YOLOv8 Live Feed (Phase 2)
+**Target:** `total_pax` — total passengers across all flights in a 30-min window
 
-Real-time camera feed integration is planned for Phase 2. The XGBoost prediction and Claude LLM layers are already designed to receive live pax counts as additional input alongside the schedule-based predictions.
+**Features:**
+| Feature | Description |
+|---|---|
+| `num_flights` | Number of flights in the window |
+| `avg_delay` | Average delay across flights (minutes) |
+| `max_delay` | Maximum delay in the window |
+| `checkin_desks` | Max desks available across flights |
+| `hour` | Hour of day (0–23) |
+| `minute` | Minute within the hour (0, 30) |
+| `day_of_week` | Day of week (0=Monday, 6=Sunday) |
+| `is_peak_hour` | 1 if hour is in peak_hours config, else 0 |
+| `time_of_day` | Continuous: hour + minute/60 |
+
+**Training data recommendation:** 2–4 weeks minimum, ideally from the target airport. More data = more variance in predictions = better alerts.
+
+---
+
+## Phase 2 (Planned)
+
+- **YOLOv8 live camera feed** — real-time passenger counting at check-in queues
+- Live pax counts fed back into XGBoost as additional features
+- Computer vision layer integrated alongside schedule-based predictions
+
+---
+
+## AirHack 2026
+
+Built by **SoloNoi** for AirHack 2026.  
+Target airport: **Iași International Airport (IAS)**  
+Scope: check-in desk operations (security gates explicitly out of scope for MVP)

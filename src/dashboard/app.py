@@ -939,8 +939,8 @@ elif page == "Alerts":
 
     if "alerts_source_filter" not in st.session_state:
         st.session_state["alerts_source_filter"] = "All"
-    f1, f2, f3, f4, f5, f6 = st.columns(6)
-    for col, label in zip([f1, f2, f3, f4, f5, f6], ["All", "Check-in", "Security", "Dep Gate", "Arrivals", "Gate"]):
+    f1, f2, f3, f4, f5 = st.columns(5)
+    for col, label in zip([f1, f2, f3, f4, f5], ["All", "Check-in", "Security", "Dep Gate", "Arrivals"]):
         active = st.session_state["alerts_source_filter"] == label
         with col:
             if st.button(label, use_container_width=True, type="primary" if active else "secondary", key=f"filter_{label}"):
@@ -948,30 +948,27 @@ elif page == "Alerts":
                 st.rerun()
     source_filter = st.session_state["alerts_source_filter"]
 
-    # Fetch all five alert sources and combine
-    ci_df   = fetch_alerts()
-    sec_df  = fetch_security_alerts()
-    gate_df = fetch_gate_alerts()
-    arr_df  = fetch_arrivals_alerts()
-    dep_df  = fetch_departures_alerts()
+    # Fetch the four active alert sources and combine
+    ci_df  = fetch_alerts()
+    sec_df = fetch_security_alerts()
+    arr_df = fetch_arrivals_alerts()
+    dep_df = fetch_departures_alerts()
 
-    all_combined = pd.concat([ci_df, sec_df, gate_df, arr_df, dep_df], ignore_index=True)
+    all_combined = pd.concat([ci_df, sec_df, arr_df, dep_df], ignore_index=True)
 
     def _classify_source(row) -> str:
         zone = str(row.get("zone", "") or "").lower()
-        if zone == "arrivals":       return "Arrivals"
+        if zone == "arrivals":        return "Arrivals"
         if zone == "departures_gate": return "Dep Gate"
-        if zone == "gate":           return "Gate"
-        if zone == "security":       return "Security"
+        if zone == "security":        return "Security"
         return "Check-in"
 
     def _ack_endpoint(row) -> str:
         src = row["_source"]
         aid = row["id"]
-        if src == "Arrivals":  return f"{API_BASE}/arrivals/alerts/{aid}/acknowledge"
-        if src == "Dep Gate":  return f"{API_BASE}/departures/alerts/{aid}/acknowledge"
-        if src == "Gate":      return f"{API_BASE}/gate/alerts/{aid}/acknowledge"
-        if src == "Security":  return f"{API_BASE}/security/alerts/{aid}/acknowledge"
+        if src == "Arrivals": return f"{API_BASE}/arrivals/alerts/{aid}/acknowledge"
+        if src == "Dep Gate": return f"{API_BASE}/departures/alerts/{aid}/acknowledge"
+        if src == "Security": return f"{API_BASE}/security/alerts/{aid}/acknowledge"
         return f"{API_BASE}/alerts/{aid}/acknowledge"
 
     if not all_combined.empty:
@@ -984,7 +981,6 @@ elif page == "Alerts":
     SOURCE_TAG = {
         "Check-in": "tag-checkin",
         "Security": "tag-security",
-        "Gate":     "tag-gate",
         "Dep Gate": "tag-gate",
         "Arrivals": "tag-checkin",
     }
@@ -1011,7 +1007,7 @@ elif page == "Alerts":
             src_tag    = SOURCE_TAG.get(source, "tag-blue")
 
             unit = {"Check-in": "desk(s)", "Security": "lane(s)",
-                    "Gate": "agent(s)", "Dep Gate": "agent(s)", "Arrivals": "staff"}.get(source, "unit(s)")
+                    "Dep Gate": "agent(s)", "Arrivals": "staff"}.get(source, "unit(s)")
             close_types = ("checkin_close", "security_close", "gate_close",
                            "arrivals_close", "departures_gate_close")
 

@@ -1356,7 +1356,7 @@ class Pax{
     this.timer=0;this.wpts=[];this.wf=0;
     this.qox=(Math.random()-.5)*6;this.alpha=1;this.trail=[];
   }
-  get myCI(){return Math.max(1,Math.round(ciTime*this.type.mult));}
+  get myCI(){return Math.max(1,Math.round(ciTime*this.type.mult/simSpeed));}
   assign(ds){
     const op=ds.filter(d=>d.open);
     if(!op.length){this.state='BALK';balked++;return;}

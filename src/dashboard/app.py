@@ -280,19 +280,25 @@ with st.sidebar:
 
     _s = fetch_sidebar_status()
     online         = bool(_s)
-    current_desks  = _s.get("desks_open", 0)
-    current_lanes  = _s.get("lanes_open", 0)
-    current_agents = _s.get("agents_open", 0)
-    open_alerts    = _s.get("open_alert_count", 0)
-    open_sec_alerts= _s.get("open_sec_count", 0)
-    open_gate_alerts=_s.get("open_gate_count", 0)
-    demo_active    = _s.get("demo_active", False)
+    current_desks       = _s.get("desks_open", 0)
+    current_lanes       = _s.get("lanes_open", 0)
+    current_agents      = _s.get("agents_open", 0)
+    current_arr_agents  = _s.get("arrivals_agents_open", 0)
+    current_dep_agents  = _s.get("departures_agents_open", 0)
+    open_alerts         = _s.get("open_alert_count", 0)
+    open_sec_alerts     = _s.get("open_sec_count", 0)
+    open_gate_alerts    = _s.get("open_gate_count", 0)
+    open_arr_alerts     = _s.get("open_arrivals_count", 0)
+    open_dep_alerts     = _s.get("open_departures_count", 0)
+    demo_active         = _s.get("demo_active", False)
 
     dot = '<span class="dot-green">●</span>' if online else '<span class="dot-red">●</span>'
     api_txt = "API ONLINE" if online else "API OFFLINE"
     ca_col  = "#f87171" if open_alerts     else "#64748b"
     sc_col  = "#f87171" if open_sec_alerts else "#64748b"
     ga_col  = "#f87171" if open_gate_alerts else "#64748b"
+    ar_col  = "#f87171" if open_arr_alerts  else "#64748b"
+    dp_col  = "#f87171" if open_dep_alerts  else "#64748b"
     st.markdown(f"""
 <div style="background:#0f1318;border:1px solid #161c26;border-radius:4px;padding:12px 14px;margin-bottom:12px;font-size:0.82rem">
   <div style="margin-bottom:8px">{dot} <span style="color:#64748b;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{api_txt}</span></div>
@@ -304,9 +310,13 @@ with st.sidebar:
     <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Security</span>
     <span><b style="color:#e2e8f0">{current_lanes}</b> lanes &nbsp;<b style="color:{sc_col}">{open_sec_alerts}</b> alerts</span>
   </div>
+  <div style="display:flex;justify-content:space-between;color:#64748b;margin-bottom:5px">
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Dep Gate</span>
+    <span><b style="color:#e2e8f0">{current_dep_agents}</b> agents &nbsp;<b style="color:{dp_col}">{open_dep_alerts}</b> alerts</span>
+  </div>
   <div style="display:flex;justify-content:space-between;color:#64748b">
-    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Departures</span>
-    <span><b style="color:#e2e8f0">{current_agents}</b> agents &nbsp;<b style="color:{ga_col}">{open_gate_alerts}</b> alerts</span>
+    <span style="color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.75rem">Arrivals</span>
+    <span><b style="color:#e2e8f0">{current_arr_agents}</b> staff &nbsp;<b style="color:{ar_col}">{open_arr_alerts}</b> alerts</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -359,8 +369,10 @@ if page == "Home":
     checkin_fc  = fetch_forecast()
     security_fc = fetch_security_forecast()
     gate_fc     = fetch_gate_forecast()
+    arrivals_fc = fetch_arrivals_forecast()
+    dep_fc      = fetch_departures_forecast()
 
-    # ── Build sorted window list from check-in forecast ───────────────────────
+    # ── Build sorted window list by time-of-day ───────────────────────────────
     def _sorted_windows(df):
         if df.empty:
             return pd.DataFrame()
@@ -372,8 +384,10 @@ if page == "Home":
     ci_sorted   = _sorted_windows(checkin_fc)
     sec_sorted  = _sorted_windows(security_fc)
     gate_sorted = _sorted_windows(gate_fc)
+    arr_sorted  = _sorted_windows(arrivals_fc)
+    dep_sorted  = _sorted_windows(dep_fc)
 
-    n_windows = max(len(ci_sorted), 1)
+    n_windows = max(len(ci_sorted), len(arr_sorted), len(dep_sorted), 1)
 
     # ── Auto-advance loop every 5 seconds ────────────────────────────────────
     if "home_window_idx" not in st.session_state:
@@ -400,27 +414,32 @@ if page == "Home":
     ci_load,   ci_win   = _load_at(ci_sorted,   idx)
     sec_load,  sec_win  = _load_at(sec_sorted,  idx)
     gate_load, gate_win = _load_at(gate_sorted, idx)
+    arr_load,  arr_win  = _load_at(arr_sorted,  idx)
+    dep_load,  dep_win  = _load_at(dep_sorted,  idx)
 
-    ci_peak  = max(_peak(checkin_fc),  1)
-    sec_peak = max(_peak(security_fc), 1)
-    gate_peak= max(_peak(gate_fc),     1)
+    ci_peak   = max(_peak(checkin_fc),  1)
+    sec_peak  = max(_peak(security_fc), 1)
+    gate_peak = max(_peak(gate_fc),     1)
+    arr_peak  = max(_peak(arrivals_fc), 1)
+    dep_peak  = max(_peak(dep_fc),      1)
 
-    # Wait-time estimate: pax in window ÷ service rate × 60
-    # Rough service rates: check-in 4 pax/min/desk, security 8 pax/min/lane, gate 10 pax/min/agent
+    # Wait-time estimate: pax ÷ service rate × 60
+    # Rates: check-in 4 pax/min/desk, security 8/lane, gate 10/agent, arrivals 6/staff
     def _wait(load, workers, rate_per_worker):
         if workers < 1 or load == 0:
             return 0
-        capacity = workers * rate_per_worker * 30   # pax per 30-min window
+        capacity = workers * rate_per_worker * 30
         utilisation = min(load / max(capacity, 1), 1.0)
-        # M/D/1 approximation: wait ≈ utilisation/(1-utilisation) × (1/rate)
         if utilisation >= 0.99:
             return 45
         wait_min = (utilisation / (1 - utilisation)) * (1 / (workers * rate_per_worker))
         return round(min(wait_min, 45), 1)
 
-    ci_wait   = _wait(ci_load,   max(current_desks, 1), 4)
-    sec_wait  = _wait(sec_load,  max(current_lanes, 1), 8)
-    gate_wait = _wait(gate_load, max(current_agents, 1), 10)
+    ci_wait   = _wait(ci_load,   max(current_desks,      1), 4)
+    sec_wait  = _wait(sec_load,  max(current_lanes,      1), 8)
+    gate_wait = _wait(gate_load, max(current_agents,     1), 10)
+    arr_wait  = _wait(arr_load,  max(current_arr_agents, 1), 6)
+    dep_wait  = _wait(dep_load,  max(current_dep_agents, 1), 10)
 
     def _gauge(title, load, peak, wait_min, color, unit="pax", win=None):
         if win is None:
@@ -479,18 +498,22 @@ if page == "Home":
     ci_color   = _color(ci_load,   ci_peak)
     sec_color  = _color(sec_load,  sec_peak)
     gate_color = _color(gate_load, gate_peak)
+    arr_color  = _color(arr_load,  arr_peak)
+    dep_color  = _color(dep_load,  dep_peak)
 
     # ── Summary stat strip ───────────────────────────────────────────────────
-    total_open = open_alerts + open_sec_alerts + open_gate_alerts
+    total_open = open_alerts + open_sec_alerts + open_gate_alerts + open_arr_alerts + open_dep_alerts
     alert_color = "red" if total_open else "green"
     alert_tag   = "tag-red" if total_open else "tag-green"
     alert_txt   = f"{total_open} OPEN" if total_open else "ALL CLEAR"
-    ci_tag   = "tag-red" if ci_load   > ci_peak  * 0.75 else ("tag-amber" if ci_load   > ci_peak  * 0.5 else "tag-green")
-    sec_tag  = "tag-red" if sec_load  > sec_peak * 0.75 else ("tag-amber" if sec_load  > sec_peak * 0.5 else "tag-green")
-    gate_tag = "tag-red" if gate_load > gate_peak* 0.75 else ("tag-amber" if gate_load > gate_peak* 0.5 else "tag-green")
-    ci_lbl   = "HIGH" if ci_load   > ci_peak  * 0.75 else ("MED" if ci_load   > ci_peak  * 0.5 else "LOW")
-    sec_lbl  = "HIGH" if sec_load  > sec_peak * 0.75 else ("MED" if sec_load  > sec_peak * 0.5 else "LOW")
-    gate_lbl = "HIGH" if gate_load > gate_peak* 0.75 else ("MED" if gate_load > gate_peak* 0.5 else "LOW")
+
+    def _tag(load, peak): return "tag-red" if load > peak*0.75 else ("tag-amber" if load > peak*0.5 else "tag-green")
+    def _lbl(load, peak): return "HIGH" if load > peak*0.75 else ("MED" if load > peak*0.5 else "LOW")
+
+    ci_tag   = _tag(ci_load,   ci_peak)
+    sec_tag  = _tag(sec_load,  sec_peak)
+    arr_tag  = _tag(arr_load,  arr_peak)
+    dep_tag  = _tag(dep_load,  dep_peak)
 
     st.markdown(f"""
 <div class="stat-strip">
@@ -499,19 +522,24 @@ if page == "Home":
     <div class="stat-val">{pd.Timestamp(ci_win).strftime('%H:%M')} – {(pd.Timestamp(ci_win) + pd.Timedelta(minutes=30)).strftime('%H:%M')}</div>
   </div>
   <div class="stat-cell">
-    <div class="stat-lbl">Check-in Load</div>
+    <div class="stat-lbl">Check-in</div>
     <div class="stat-val">{ci_load} pax</div>
-    <span class="stat-tag {ci_tag}">{ci_lbl}</span>
+    <span class="stat-tag {ci_tag}">{_lbl(ci_load, ci_peak)}</span>
   </div>
   <div class="stat-cell">
-    <div class="stat-lbl">Security Load</div>
+    <div class="stat-lbl">Security</div>
     <div class="stat-val">{sec_load} pax</div>
-    <span class="stat-tag {sec_tag}">{sec_lbl}</span>
+    <span class="stat-tag {sec_tag}">{_lbl(sec_load, sec_peak)}</span>
   </div>
   <div class="stat-cell">
-    <div class="stat-lbl">Gate Load</div>
-    <div class="stat-val">{gate_load} pax</div>
-    <span class="stat-tag {gate_tag}">{gate_lbl}</span>
+    <div class="stat-lbl">Dep Gate</div>
+    <div class="stat-val">{dep_load} pax</div>
+    <span class="stat-tag {dep_tag}">{_lbl(dep_load, dep_peak)}</span>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Arrivals</div>
+    <div class="stat-val">{arr_load} pax</div>
+    <span class="stat-tag {arr_tag}">{_lbl(arr_load, arr_peak)}</span>
   </div>
   <div class="stat-cell">
     <div class="stat-lbl">Open Alerts</div>
@@ -520,10 +548,13 @@ if page == "Home":
 </div>
 """, unsafe_allow_html=True)
 
-    if checkin_fc.empty and security_fc.empty and gate_fc.empty:
+    any_data = not (checkin_fc.empty and security_fc.empty and gate_fc.empty
+                    and arrivals_fc.empty and dep_fc.empty)
+    if not any_data:
         st.info("No forecast data yet — load the demo or run a forecast to see live gauges.")
     else:
-        # ── Three gauges ─────────────────────────────────────────────────────
+        # ── Departures flow: 3 gauges ────────────────────────────────────────
+        st.markdown("<div class='sec-label' style='margin-bottom:4px'>Departures flow</div>", unsafe_allow_html=True)
         g1, g2, g3 = st.columns(3)
         with g1:
             st.plotly_chart(
@@ -532,7 +563,7 @@ if page == "Home":
             )
             st.markdown(f"""
 <div style="text-align:center;margin-top:-10px">
-  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Desks open</div>
+  <div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Desks open</div>
   <div style="font-size:2rem;font-weight:900;color:{ci_color};line-height:1">{current_desks}</div>
   <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{ci_wait} min avg wait</div>
 </div>""", unsafe_allow_html=True)
@@ -544,21 +575,36 @@ if page == "Home":
             )
             st.markdown(f"""
 <div style="text-align:center;margin-top:-10px">
-  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Lanes open</div>
+  <div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Lanes open</div>
   <div style="font-size:2rem;font-weight:900;color:{sec_color};line-height:1">{current_lanes}</div>
   <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{sec_wait} min avg wait</div>
 </div>""", unsafe_allow_html=True)
 
         with g3:
             st.plotly_chart(
-                _gauge("GATE / BOARDING", gate_load, gate_peak, gate_wait, gate_color, win=gate_win),
+                _gauge("DEP GATE", dep_load, dep_peak, dep_wait, dep_color, win=dep_win),
                 use_container_width=True, config={"displayModeBar": False},
             )
             st.markdown(f"""
 <div style="text-align:center;margin-top:-10px">
-  <div style="font-size:0.68rem;color:#334155;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Agents deployed</div>
-  <div style="font-size:2rem;font-weight:900;color:{gate_color};line-height:1">{current_agents}</div>
-  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{gate_wait} min avg wait</div>
+  <div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Gate agents</div>
+  <div style="font-size:2rem;font-weight:900;color:{dep_color};line-height:1">{current_dep_agents}</div>
+  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{dep_wait} min avg wait</div>
+</div>""", unsafe_allow_html=True)
+
+        # ── Arrivals flow: 1 centred gauge ───────────────────────────────────
+        st.markdown("<div class='sec-label' style='margin-top:8px;margin-bottom:4px'>Arrivals flow</div>", unsafe_allow_html=True)
+        _, ag, _ = st.columns([1, 2, 1])
+        with ag:
+            st.plotly_chart(
+                _gauge("ARRIVALS", arr_load, arr_peak, arr_wait, arr_color, win=arr_win),
+                use_container_width=True, config={"displayModeBar": False},
+            )
+            st.markdown(f"""
+<div style="text-align:center;margin-top:-10px">
+  <div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Staff deployed</div>
+  <div style="font-size:2rem;font-weight:900;color:{arr_color};line-height:1">{current_arr_agents}</div>
+  <div style="font-size:0.72rem;color:#475569;margin-top:4px">~{arr_wait} min avg wait</div>
 </div>""", unsafe_allow_html=True)
 
         st.divider()
@@ -576,19 +622,25 @@ if page == "Home":
         ci_next   = _next_windows(ci_sorted)
         sec_next  = _next_windows(sec_sorted)
         gate_next = _next_windows(gate_sorted)
+        arr_next  = _next_windows(arr_sorted)
+        dep_next  = _next_windows(dep_sorted)
 
-        if not ci_next.empty:
+        # Use check-in windows as the time anchor; fall back to arrivals if no check-in
+        anchor = ci_next if not ci_next.empty else arr_next
+        if not anchor.empty:
             rows = []
-            for i in range(len(ci_next)):
-                ci_row   = ci_next.iloc[i]  if i < len(ci_next)   else None
-                sec_row  = sec_next.iloc[i] if i < len(sec_next)  else None
-                gate_row = gate_next.iloc[i]if i < len(gate_next) else None
-                t = pd.Timestamp(ci_row["window_start"]).strftime("%H:%M") if ci_row is not None else "—"
+            for i in range(len(anchor)):
+                ci_row   = ci_next.iloc[i]   if i < len(ci_next)   else None
+                sec_row  = sec_next.iloc[i]  if i < len(sec_next)  else None
+                dep_row  = dep_next.iloc[i]  if i < len(dep_next)  else None
+                arr_row  = arr_next.iloc[i]  if i < len(arr_next)  else None
+                t = pd.Timestamp(anchor.iloc[i]["window_start"]).strftime("%H:%M")
                 rows.append({
-                    "Window": t,
-                    "Check-in": int(ci_row["predicted_load"])   if ci_row   is not None else 0,
-                    "Security":  int(sec_row["predicted_load"])  if sec_row  is not None else 0,
-                    "Departures": int(gate_row["predicted_load"]) if gate_row is not None else 0,
+                    "Window":     t,
+                    "Check-in":   int(ci_row["predicted_load"])  if ci_row  is not None else 0,
+                    "Security":   int(sec_row["predicted_load"]) if sec_row is not None else 0,
+                    "Dep Gate":   int(dep_row["predicted_load"]) if dep_row is not None else 0,
+                    "Arrivals":   int(arr_row["predicted_load"]) if arr_row is not None else 0,
                 })
             mini_df = pd.DataFrame(rows)
             st.dataframe(mini_df, use_container_width=True, hide_index=True)
@@ -598,22 +650,26 @@ if page == "Home":
         st.markdown("<div class='sec-label'>Today's totals</div>", unsafe_allow_html=True)
         ci_total   = int(checkin_fc["predicted_load"].sum())  if not checkin_fc.empty  else 0
         sec_total  = int(security_fc["predicted_load"].sum()) if not security_fc.empty else 0
-        gate_total = int(gate_fc["predicted_load"].sum())     if not gate_fc.empty     else 0
+        dep_total  = int(dep_fc["predicted_load"].sum())      if not dep_fc.empty      else 0
+        arr_total  = int(arrivals_fc["predicted_load"].sum()) if not arrivals_fc.empty else 0
         ci_peak2   = int(checkin_fc["predicted_load"].max())  if not checkin_fc.empty  else 0
         sec_peak2  = int(security_fc["predicted_load"].max()) if not security_fc.empty else 0
-        gate_peak2 = int(gate_fc["predicted_load"].max())     if not gate_fc.empty     else 0
+        dep_peak2  = int(dep_fc["predicted_load"].max())      if not dep_fc.empty      else 0
+        arr_peak2  = int(arrivals_fc["predicted_load"].max()) if not arrivals_fc.empty else 0
         st.markdown(f"""
 <div class="kpi-row">
   <div class="kpi-box"><div class="kpi-val">{ci_total:,}</div><div class="kpi-lbl">Check-in pax today</div></div>
   <div class="kpi-box"><div class="kpi-val">{ci_peak2}</div><div class="kpi-lbl">Check-in peak / window</div></div>
   <div class="kpi-box"><div class="kpi-val">{sec_total:,}</div><div class="kpi-lbl">Security pax today</div></div>
   <div class="kpi-box"><div class="kpi-val">{sec_peak2}</div><div class="kpi-lbl">Security peak / window</div></div>
-  <div class="kpi-box"><div class="kpi-val">{gate_total:,}</div><div class="kpi-lbl">Gate pax today</div></div>
-  <div class="kpi-box"><div class="kpi-val">{gate_peak2}</div><div class="kpi-lbl">Gate peak / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{dep_total:,}</div><div class="kpi-lbl">Dep Gate pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{dep_peak2}</div><div class="kpi-lbl">Dep Gate peak / window</div></div>
+  <div class="kpi-box"><div class="kpi-val">{arr_total:,}</div><div class="kpi-lbl">Arrivals pax today</div></div>
+  <div class="kpi-box"><div class="kpi-val">{arr_peak2}</div><div class="kpi-lbl">Arrivals peak / window</div></div>
 </div>""", unsafe_allow_html=True)
 
     # ── Auto-advance: sleep remaining time then rerun ─────────────────────────
-    if not checkin_fc.empty or not security_fc.empty or not gate_fc.empty:
+    if any_data:
         remaining = 5 - (time.time() - st.session_state["home_last_tick"])
         if remaining > 0:
             time.sleep(remaining)

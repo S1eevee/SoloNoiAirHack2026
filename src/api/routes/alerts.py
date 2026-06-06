@@ -8,6 +8,8 @@ from src.alerts.state import (
     get_desks_open, set_desks_open,
     get_lanes_open, get_agents_open,
     get_security_alerts, get_gate_alerts,
+    get_arrivals_agents_open, get_arrivals_alerts,
+    get_departures_gate_agents_open, get_departures_gate_alerts,
     set_alert_note,
 )
 
@@ -38,13 +40,17 @@ async def get_status():
         except Exception:
             pass
     return {
-        "desks_open":        get_desks_open(),
-        "lanes_open":        get_lanes_open(),
-        "agents_open":       get_agents_open(),
-        "open_alert_count":  len(get_alerts(status="OPEN")),
-        "open_sec_count":    len(get_security_alerts(status="OPEN")),
-        "open_gate_count":   len(get_gate_alerts(status="OPEN")),
-        "demo_active":       demo_active,
+        "desks_open":             get_desks_open(),
+        "lanes_open":             get_lanes_open(),
+        "agents_open":            get_agents_open(),
+        "arrivals_agents_open":   get_arrivals_agents_open(),
+        "departures_agents_open": get_departures_gate_agents_open(),
+        "open_alert_count":       len(get_alerts(status="OPEN")),
+        "open_sec_count":         len(get_security_alerts(status="OPEN")),
+        "open_gate_count":        len(get_gate_alerts(status="OPEN")),
+        "open_arrivals_count":    len(get_arrivals_alerts(status="OPEN")),
+        "open_departures_count":  len(get_departures_gate_alerts(status="OPEN")),
+        "demo_active":            demo_active,
     }
 
 

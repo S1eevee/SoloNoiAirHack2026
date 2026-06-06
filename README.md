@@ -99,6 +99,53 @@ Go to **http://localhost:8501**
 
 ---
 
+## Terminal Check-In Flow Simulation
+
+A **real-time interactive simulation** showing passenger flow through check-in desks, integrated with ML predictions.
+
+### Run the Simulation
+
+#### Option A: Web-based (no special setup)
+```bash
+# Start the web server (already running in dev container)
+python3 -m http.server 8000
+```
+Then visit: **http://localhost:8000**
+
+#### Option B: With API predictions (full integration)
+```bash
+# Terminal 1: Start the API
+python3 -m uvicorn src.api.app:app --reload --port 8000
+
+# Terminal 2: Start the web server  
+python3 -m http.server 8001
+```
+Then visit: **http://localhost:8001** (simulation with live predictions)
+
+### What It Shows
+
+- **20 check-in desks** (10 open/green, 10 closed/red)
+- **Real-time passenger flow** — blue circles spawn, queue, check in, exit
+- **Dynamic desk allocation** — simulation recommends which desks to open based on **ML predictions**
+- **Live statistics** — passengers in system, queue length, processed count, FPS
+- **Predicted load graph** — next 24 hours of passenger volume (from XGBoost model)
+
+### How It Works
+
+1. Simulation fetches **24-hour predictions** from the FastAPI backend (`/forecast/run`)
+2. Shows **predicted peak windows** on the right panel
+3. Recommends how many desks should be **open at each time**
+4. Spawns passengers at the **predicted flowrate** for the current window
+5. Updates in real-time as simulation progresses
+
+### Controls
+
+- **Start** — Begin simulation
+- **Pause** — Pause/resume
+- **Reset** — Clear all passengers and restart
+
+---
+
 ## Dashboard Tabs
 
 | Tab | Who uses it | What it does |

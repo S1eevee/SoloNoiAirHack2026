@@ -116,14 +116,31 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             }
 
-            // Refresh Button
-            Button(
-                onClick = { isRefreshing = true },
+            // Action Buttons
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Refresh")
+                Button(
+                    onClick = { navController.navigate("predictor") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Text("Passenger Flow Predictor")
+                }
+                
+                Button(
+                    onClick = { isRefreshing = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                ) {
+                    Text("Refresh")
+                }
             }
         }
     }

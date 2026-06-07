@@ -9,7 +9,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
-API_BASE = "http://localhost:8000"
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
 _session = requests.Session()
 _session.headers.update({"X-API-Key": os.getenv("API_KEY", "")})
 
@@ -326,7 +326,7 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-    nav_pages = ["Home", "Train Model", "Check-in", "Alerts", "Security", "Arrivals", "Departures", "Simulation", "Settings"]
+    nav_pages = ["Home", "Train Model", "Check-in", "Alerts", "Security", "Arrivals", "Departures", "Simulation", "Predictor", "Settings"]
     if "current_page" not in st.session_state:
         st.session_state["current_page"] = "Home"
     saved_page = st.session_state["current_page"]
@@ -1445,7 +1445,7 @@ loop();
 </body>
 </html>"""
 
-    components.html(_SIM_HTML, height=700, scrolling=False)
+    components.html(_SIM_HTML.replace("http://localhost:8000", API_BASE), height=700, scrolling=False)
 
 
 # ── Security ───────────────────────────────────────────────────────────────────
@@ -2117,3 +2117,21 @@ elif page == "Settings":
         if st.form_submit_button("Save", type="primary"):
             resp = _session.post(f"{API_BASE}/thresholds", json=levels)
             st.success("Saved") if resp.ok else st.error(f"Failed: {resp.text}")
+
+
+# ── Passenger Flow Predictor ───────────────────────────────────────────────────
+
+elif page == "Passenger Flow Predictor":
+    st.markdown("""
+<div class="ias-hero">
+  <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Passenger Flow Predictor &nbsp;·&nbsp; External Tool</div>
+</div>
+""", unsafe_allow_html=True)
+    
+    components.iframe("https://passenger-flow-predictor.onrender.com/", height=800, scrolling=True)
+
+ scrolling=True)
+
+rolling=True)
+

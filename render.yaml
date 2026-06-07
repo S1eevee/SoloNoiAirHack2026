@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: solonoi-api
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: solonoi-dashboard
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run src/dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: API_BASE
+        value: https://solonoi-api.onrender.com
+      - key: PYTHON_VERSION
+        value: 3.11.0

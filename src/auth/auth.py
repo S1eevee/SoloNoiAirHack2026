@@ -8,10 +8,16 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-# Configuration
+# Configuration — crypto agility: swap JWT_ALGORITHM in .env without touching code
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24  # 30 days
+
+# For asymmetric algorithms (RS256, ES256, PS256): load PEM keys from env.
+# For symmetric algorithms (HS256, HS384, HS512): SECRET_KEY is used directly.
+_is_asymmetric = ALGORITHM.startswith(("RS", "ES", "PS"))
+_SIGNING_KEY = os.getenv("JWT_PRIVATE_KEY", SECRET_KEY) if _is_asymmetric else SECRET_KEY
+_VERIFY_KEY  = os.getenv("JWT_PUBLIC_KEY",  SECRET_KEY) if _is_asymmetric else SECRET_KEY
 DB_PATH = "auth.db"
 
 # Password hashing
@@ -63,22 +69,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 # JWT utilities
 def create_access_token(employee_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
+    """Create a JWT access token signed with the configured algorithm (_SIGNING_KEY)."""
     if expires_delta is None:
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     expire = datetime.utcnow() + expires_delta
-    to_encode = {"sub": employee_id, "exp": expire}
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    to_encode = {"sub": employee_id, "exp": expire, "alg": ALGORITHM}
+    return jwt.encode(to_encode, _SIGNING_KEY, algorithm=ALGORITHM)
 
 def verify_token(token: str) -> Optional[str]:
-    """Verify and decode a JWT token. Returns employee_id if valid."""
+    """Verify and decode a JWT token using the configured algorithm (_VERIFY_KEY)."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _VERIFY_KEY, algorithms=[ALGORITHM])
         employee_id: str = payload.get("sub")
-        if employee_id is None:
-            return None
-        return employee_id
+        return employee_id if employee_id else None
     except JWTError:
         return None
 

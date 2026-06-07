@@ -17,3 +17,4 @@ passlib[bcrypt]>=1.7.4
 firebase-admin>=6.5.0
 pydantic[email]>=2.0.0
 paho-mqtt>=1.6.1
+python-dotenv>=1.0.0

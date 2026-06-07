@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -5,8 +6,12 @@ import requests
 import plotly.graph_objects as go
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 API_BASE = "http://localhost:8000"
+_session = requests.Session()
+_session.headers.update({"X-API-Key": os.getenv("API_KEY", "")})
 
 st.set_page_config(
     page_title="SoloNoi — Passenger Flow",
@@ -124,7 +129,7 @@ footer    { visibility: hidden; }
 @st.cache_data(ttl=4, show_spinner=False)
 def fetch_json(url):
     try:
-        r = requests.get(url, timeout=5)
+        r = _session.get(url, timeout=5)
         return r.json() if r.ok else None
     except Exception:
         return None
@@ -133,7 +138,7 @@ def fetch_json(url):
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_forecast() -> pd.DataFrame:
     try:
-        r = requests.get(f"{API_BASE}/forecast", timeout=5)
+        r = _session.get(f"{API_BASE}/forecast", timeout=5)
         if r.ok:
             df = pd.DataFrame(r.json())
             if not df.empty:
@@ -148,7 +153,7 @@ def fetch_forecast() -> pd.DataFrame:
 def fetch_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
-        r = requests.get(f"{API_BASE}/alerts", params=params, timeout=5)
+        r = _session.get(f"{API_BASE}/alerts", params=params, timeout=5)
         if r.ok:
             return pd.DataFrame(r.json())
     except Exception:
@@ -160,7 +165,7 @@ def fetch_alerts(status=None) -> pd.DataFrame:
 def fetch_security_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
-        r = requests.get(f"{API_BASE}/security/alerts", params=params, timeout=5)
+        r = _session.get(f"{API_BASE}/security/alerts", params=params, timeout=5)
         if r.ok:
             return pd.DataFrame(r.json())
     except Exception:
@@ -171,7 +176,7 @@ def fetch_security_alerts(status=None) -> pd.DataFrame:
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_security_forecast() -> pd.DataFrame:
     try:
-        r = requests.get(f"{API_BASE}/security/forecast", timeout=5)
+        r = _session.get(f"{API_BASE}/security/forecast", timeout=5)
         if r.ok:
             df = pd.DataFrame(r.json())
             if not df.empty:
@@ -186,7 +191,7 @@ def fetch_security_forecast() -> pd.DataFrame:
 def fetch_gate_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
-        r = requests.get(f"{API_BASE}/gate/alerts", params=params, timeout=5)
+        r = _session.get(f"{API_BASE}/gate/alerts", params=params, timeout=5)
         if r.ok:
             return pd.DataFrame(r.json())
     except Exception:
@@ -197,7 +202,7 @@ def fetch_gate_alerts(status=None) -> pd.DataFrame:
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_gate_forecast() -> pd.DataFrame:
     try:
-        r = requests.get(f"{API_BASE}/gate/forecast", timeout=5)
+        r = _session.get(f"{API_BASE}/gate/forecast", timeout=5)
         if r.ok:
             df = pd.DataFrame(r.json())
             if not df.empty:
@@ -211,7 +216,7 @@ def fetch_gate_forecast() -> pd.DataFrame:
 def fetch_arrivals_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
-        r = requests.get(f"{API_BASE}/arrivals/alerts", params=params, timeout=5)
+        r = _session.get(f"{API_BASE}/arrivals/alerts", params=params, timeout=5)
         if r.ok:
             return pd.DataFrame(r.json())
     except Exception:
@@ -222,7 +227,7 @@ def fetch_arrivals_alerts(status=None) -> pd.DataFrame:
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_arrivals_forecast() -> pd.DataFrame:
     try:
-        r = requests.get(f"{API_BASE}/arrivals/forecast", timeout=5)
+        r = _session.get(f"{API_BASE}/arrivals/forecast", timeout=5)
         if r.ok:
             df = pd.DataFrame(r.json())
             if not df.empty:
@@ -236,7 +241,7 @@ def fetch_arrivals_forecast() -> pd.DataFrame:
 def fetch_departures_alerts(status=None) -> pd.DataFrame:
     try:
         params = {"status": status} if status else {}
-        r = requests.get(f"{API_BASE}/departures/alerts", params=params, timeout=5)
+        r = _session.get(f"{API_BASE}/departures/alerts", params=params, timeout=5)
         if r.ok:
             return pd.DataFrame(r.json())
     except Exception:
@@ -247,7 +252,7 @@ def fetch_departures_alerts(status=None) -> pd.DataFrame:
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_departures_forecast() -> pd.DataFrame:
     try:
-        r = requests.get(f"{API_BASE}/departures/forecast", timeout=5)
+        r = _session.get(f"{API_BASE}/departures/forecast", timeout=5)
         if r.ok:
             df = pd.DataFrame(r.json())
             if not df.empty:
@@ -262,7 +267,7 @@ def fetch_departures_forecast() -> pd.DataFrame:
 def fetch_sidebar_status() -> dict:
     """One call that replaces 8 separate sidebar API requests."""
     try:
-        r = requests.get(f"{API_BASE}/alerts/status", timeout=4)
+        r = _session.get(f"{API_BASE}/alerts/status", timeout=4)
         if r.ok:
             return r.json()
     except Exception:
@@ -332,7 +337,7 @@ with st.sidebar:
     st.divider()
     if demo_active:
         if st.button("✕ Unload Demo", use_container_width=True, help="Clear demo data and return to a clean state"):
-            r = requests.post(f"{API_BASE}/demo/unload", timeout=30)
+            r = _session.post(f"{API_BASE}/demo/unload", timeout=30)
             if r.ok:
                 st.cache_data.clear()
                 st.session_state["current_page"] = "Train Model"
@@ -342,7 +347,7 @@ with st.sidebar:
     else:
         if st.button("⚡ Load Demo", use_container_width=True, help="Pre-load 14 days of sample data, train the model, and run forecast in one click"):
             with st.spinner("Loading demo — training model…"):
-                r = requests.post(f"{API_BASE}/demo/load", timeout=180)
+                r = _session.post(f"{API_BASE}/demo/load", timeout=180)
             if r.ok:
                 d = r.json()
                 st.success(f"Demo ready · {d['windows_predicted']} windows · {d['alerts_generated']} alerts")
@@ -703,7 +708,7 @@ elif page == "Train Model":
                 for f in files_in_dataset:
                     st.markdown(f"**{f['filename']}** — {f['flights']:,} flights · {f['date_from'][:10]} → {f['date_to'][:10]}")
         if st.button("Clear training data", type="secondary"):
-            requests.post(f"{API_BASE}/data/upload/training/clear")
+            _session.post(f"{API_BASE}/data/upload/training/clear")
             st.cache_data.clear()
             st.rerun()
     else:
@@ -726,7 +731,7 @@ elif page == "Train Model":
         upload_key = ",".join(f.name + str(f.size) for f in uploaded_files)
         if st.session_state.get("training_last_upload") != upload_key:
             with st.spinner(f"Uploading {len(uploaded_files)} file(s)…"):
-                resp = requests.post(
+                resp = _session.post(
                     f"{API_BASE}/data/upload/training",
                     files=[("files", (f.name, f.getvalue(), "text/csv")) for f in uploaded_files],
                 )
@@ -741,7 +746,7 @@ elif page == "Train Model":
 
     if st.button("Train Model", type="primary", use_container_width=True):
         with st.spinner("Training XGBoost…"):
-            r = requests.post(f"{API_BASE}/forecast/train", timeout=120)
+            r = _session.post(f"{API_BASE}/forecast/train", timeout=120)
         if r.ok:
             d = r.json()
             m = d.get("metrics", {})
@@ -788,7 +793,7 @@ elif page == "Check-in":
     uploaded = st.file_uploader("Upload upcoming flight schedule CSV", type=["csv"], key="schedule_upload")
     if uploaded and st.session_state.get("schedule_last_upload") != uploaded.name + str(uploaded.size):
         with st.spinner("Loading…"):
-            resp = requests.post(
+            resp = _session.post(
                 f"{API_BASE}/data/upload/schedule",
                 files={"file": (uploaded.name, uploaded.getvalue(), "text/csv")},
             )
@@ -801,7 +806,7 @@ elif page == "Check-in":
 
     if st.button("Run Forecast & Generate Alerts", type="primary", use_container_width=True):
         with st.spinner("Predicting…"):
-            r = requests.post(f"{API_BASE}/forecast/run", timeout=120)
+            r = _session.post(f"{API_BASE}/forecast/run", timeout=120)
         if r.ok:
             d = r.json()
             st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
@@ -1045,7 +1050,7 @@ elif page == "Alerts":
                         label_visibility="collapsed",
                     )
                     if st.button("Save note", key=f"note_save_{tab_key}_{source}_{row['id']}"):
-                        requests.patch(f"{API_BASE}/alerts/{int(row['id'])}/note", json={"note": new_note})
+                        _session.patch(f"{API_BASE}/alerts/{int(row['id'])}/note", json={"note": new_note})
                         st.cache_data.clear()
                         st.rerun()
             with col_btn:
@@ -1053,7 +1058,7 @@ elif page == "Alerts":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
                     if st.button("Confirm", key=f"ack_{tab_key}_{source}_{row['id']}"):
-                        requests.post(ack_url, json={"employee": emp})
+                        _session.post(ack_url, json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
 
@@ -1091,8 +1096,7 @@ elif page == "Simulation":
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Terminal Simulation</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<title>Check-in Simulation</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter','Segoe UI',Arial,sans-serif}
@@ -1103,7 +1107,7 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
 .btns{display:flex;justify-content:center;gap:8px;margin:10px 0 8px}
 .btn{padding:7px 20px;font-size:11px;border:none;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
 .btn:active{transform:scale(.97)}
-.btn-s{background:#4ade80;color:#020d06;border:none}.btn-s:hover{background:#5bf58f}
+.btn-s{background:#4ade80;color:#020d06}.btn-s:hover{background:#5bf58f}
 .btn-s:disabled{background:#162a1c;color:#64748b;cursor:not-allowed}
 .btn-p{background:#fb923c18;color:#fb923c;border:1px solid #fb923c30}.btn-p:hover{background:#fb923c30}
 .btn-p:disabled{background:#0f0e09;color:#3a2a15;border-color:#1c160a;cursor:not-allowed}
@@ -1113,57 +1117,14 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
 .slbl{color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;font-weight:700}
 .sval{font-size:18px;font-weight:800}
 .c-b{color:#60a5fa}.c-y{color:#fb923c}.c-g{color:#4ade80}.c-r{color:#f87171}.c-w{color:#e2e8f0}.c-o{color:#fb923c}
-.progress-wrap{height:4px;background:#0b0d10;border-radius:2px;margin-top:8px;overflow:hidden}
-.progress-bar{height:100%;background:linear-gradient(90deg,#4ade80,#fb923c);border-radius:2px;transition:width .3s}
-.prog-lbl{font-size:10px;color:#94a3b8;text-align:center;margin-top:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.right{width:290px;flex-shrink:0;background:#0c1020;padding:14px 12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
-.sec-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
-.api-row{display:flex;gap:4px}
-.abtn{flex:1;padding:6px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
-.abtn:active{transform:scale(.97)}
-.abtn-g{background:#4ade8018;color:#4ade80;border:1px solid #4ade8030}.abtn-g:hover{background:#4ade8030}
-.abtn-b{background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30}.abtn-b:hover{background:#60a5fa25}
-.abtn:disabled{opacity:.35;cursor:not-allowed}
-.smsg{padding:6px 8px;border-radius:3px;font-size:11px;text-align:center;display:none;font-weight:600;letter-spacing:.03em}
-.smsg.ok{background:#4ade8012;color:#4ade80;border:1px solid #4ade8025;display:block}
-.smsg.err{background:#f8717112;color:#f87171;border:1px solid #f8717125;display:block}
-.timeline-scroll{overflow-x:auto;padding-bottom:4px}
-.timeline-scroll::-webkit-scrollbar{height:3px}
-.timeline-scroll::-webkit-scrollbar-track{background:#0b0d10}
-.timeline-scroll::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
-.timeline-row{display:flex;gap:2px;min-width:max-content;padding:2px 0}
-.tblock{width:28px;flex-shrink:0;cursor:pointer;border-radius:2px;border:1px solid transparent;transition:all .15s;position:relative;overflow:visible}
-.tblock:hover .tblock-bar{opacity:.8}
-.tblock-bar{height:28px;border-radius:2px;transition:opacity .15s}
-.tblock-lbl{font-size:9px;color:#4a6280;text-align:center;margin-top:2px;white-space:nowrap;font-weight:600}
-.tblock.selected{border-color:#4ade80 !important}
-.tblock.selected .tblock-lbl{color:#4ade80;font-weight:800}
-.alert-dot{position:absolute;top:-4px;right:2px;width:5px;height:5px;border-radius:50%;border:1px solid #0b0d10}
-.win-card{background:#0b0d10;border-radius:4px;padding:9px;border:1px solid #161c26}
-.win-card-time{font-size:20px;font-weight:800;color:#e2e8f0;margin-bottom:5px;letter-spacing:-0.02em}
-.win-card-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #161c26}
-.win-card-row:last-child{border:none}
-.win-card-lbl{color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:10px}
-.win-card-val{font-weight:700;color:#e2e8f0}
-.win-card-val.alert-open{color:#f87171}
-.win-card-val.alert-close{color:#4ade80}
-.alert-msg{font-size:11px;margin-top:5px;padding:6px 8px;border-radius:3px;line-height:1.5;font-weight:600}
-.alert-msg.open{background:#f8717110;border-left:2px solid #f87171;color:#f87171}
-.alert-msg.close{background:#4ade8010;border-left:2px solid #4ade80;color:#4ade80}
-.load-btn{width:100%;padding:8px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#4ade80;color:#020d06;margin-top:6px;transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
-.load-btn:hover{background:#5bf58f}
-.load-btn:disabled{opacity:.35;cursor:not-allowed;background:#162a1c;color:#64748b}
-.no-fc{font-size:11px;color:#475569;text-align:center;padding:16px 0;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
-.speed-box{background:#0b0d10;padding:8px;border-radius:4px;border:1px solid #161c26}
-.speed-row{display:flex;flex-direction:column;gap:3px}
-.speed-row label{font-size:9px;color:#64748b;font-weight:700;display:flex;justify-content:space-between;margin-bottom:2px;text-transform:uppercase;letter-spacing:.08em}
-.speed-row label span{color:#4ade80;font-weight:800;font-size:11px}
-.speed-row input[type=range]{width:100%;accent-color:#4ade80;cursor:pointer}
-.speed-hint{font-size:10px;color:#475569;margin-top:2px;font-weight:600}
-.day-btn{width:100%;padding:7px;font-size:10px;border:none;border-radius:4px;cursor:pointer;font-weight:700;background:#60a5fa18;color:#60a5fa;border:1px solid #60a5fa30;transition:all .15s;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
-.day-btn:hover{background:#60a5fa25}
-.day-btn:disabled{opacity:.35;cursor:not-allowed}
-.day-prog{font-size:10px;color:#94a3b8;text-align:center;margin-top:3px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.right{width:290px;flex-shrink:0;background:#0c1020;padding:14px 12px;display:flex;flex-direction:column;gap:14px}
+.sec-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.ctrl-box{background:#0b0d10;padding:10px;border-radius:4px;border:1px solid #1e2535}
+.ctrl-row{display:flex;flex-direction:column;gap:6px}
+.ctrl-row label{font-size:10px;color:#94a3b8;font-weight:700;display:flex;justify-content:space-between;text-transform:uppercase;letter-spacing:.06em}
+.ctrl-row label .vs{color:#4ade80;font-weight:800;font-size:13px}
+.ctrl-row input[type=range]{width:100%;accent-color:#4ade80;cursor:pointer}
+.ctrl-hint{font-size:10px;color:#475569;margin-top:4px;font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:5px 12px}
 .leg{display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -1172,7 +1133,6 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
 </head>
 <body>
 <div class="wrap">
-  <!-- LEFT: simulation canvas -->
   <div class="sim-panel">
     <canvas id="c" width="800" height="490"></canvas>
     <div class="btns">
@@ -1184,72 +1144,35 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
       <div class="sbox"><div class="slbl">In System</div><div class="sval c-b" id="ss">0</div></div>
       <div class="sbox"><div class="slbl">In Queue</div><div class="sval c-y" id="sq">0</div></div>
       <div class="sbox"><div class="slbl">Processed</div><div class="sval c-g" id="sp">0</div></div>
-      <div class="sbox"><div class="slbl">Open Desks</div><div class="sval c-w" id="sd">--</div></div>
+      <div class="sbox"><div class="slbl">Open Desks</div><div class="sval c-w" id="sd">1</div></div>
       <div class="sbox"><div class="slbl">Turned Away</div><div class="sval c-r" id="sb">0</div></div>
       <div class="sbox"><div class="slbl">Avg Wait</div><div class="sval c-o" id="sw">--</div></div>
     </div>
-    <div class="progress-wrap"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
-    <div class="prog-lbl" id="progLbl"></div>
   </div>
 
-  <!-- RIGHT: controls -->
   <div class="right">
-
-    <!-- Forecast loading -->
     <div>
-      <div class="sec-title">Forecast Data</div>
-      <div class="api-row" style="margin-top:4px">
-        <button class="abtn abtn-g" id="btnTrain">Train</button>
-        <button class="abtn abtn-b" id="btnForecast">Load Forecast</button>
+      <div class="sec-title">Queue Threshold</div>
+      <div class="ctrl-box">
+        <div class="ctrl-row">
+          <label>Open next desk when avg queue &gt; <span class="vs" id="lblThresh">5</span></label>
+          <input type="range" id="slThresh" min="1" max="15" step="1" value="5">
+        </div>
+        <div class="ctrl-hint">Desk closes again once queues drain below 1</div>
       </div>
-      <div id="smsg" class="smsg" style="margin-top:5px"></div>
     </div>
-
-    <!-- Speed -->
     <div>
-      <div class="sec-title" style="margin-bottom:5px">Simulation Speed</div>
-      <div class="speed-box">
-        <div class="speed-row">
-          <label>Time speed <span id="lblSpeed">5x</span></label>
+      <div class="sec-title">Simulation Speed</div>
+      <div class="ctrl-box">
+        <div class="ctrl-row">
+          <label>Time speed <span class="vs" id="lblSpeed">5x</span></label>
           <input type="range" id="slSpeed" min="1" max="30" step="1" value="5">
         </div>
-        <div class="speed-hint">1x = real-ish &nbsp;·&nbsp; 10x = fast &nbsp;·&nbsp; 30x = turbo</div>
+        <div class="ctrl-hint">1x = real-time &nbsp;·&nbsp; 30x = turbo</div>
       </div>
     </div>
-
-    <!-- Full day -->
     <div>
-      <div class="sec-title" style="margin-bottom:5px">Full Day</div>
-      <button class="day-btn" id="btnDay">&#9654;&#9654; Simulate Entire Day</button>
-      <div class="day-prog" id="dayProg"></div>
-    </div>
-
-    <!-- Timeline -->
-    <div>
-      <div class="sec-title">Select Time Window</div>
-      <div class="timeline-scroll" style="margin-top:5px">
-        <div class="timeline-row" id="timeline">
-          <div class="no-fc">Load forecast to see timeline</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Selected window card -->
-    <div id="winCard" style="display:none">
-      <div class="win-card">
-        <div class="win-card-time" id="wcTime">--:--</div>
-        <div class="win-card-row"><span class="win-card-lbl">Predicted pax</span><span class="win-card-val" id="wcPax">--</span></div>
-        <div class="win-card-row"><span class="win-card-lbl">Desks to open</span><span class="win-card-val" id="wcDesks">--</span></div>
-        <div class="win-card-row"><span class="win-card-lbl">Window status</span><span class="win-card-val" id="wcStatus">--</span></div>
-        <div id="wcAlert" class="alert-msg" style="display:none"></div>
-        <button class="load-btn" id="btnLoad">Simulate this window</button>
-      </div>
-    </div>
-
-
-    <!-- Legend -->
-    <div>
-      <div class="sec-title" style="margin-bottom:4px">Legend</div>
+      <div class="sec-title">Legend</div>
       <div class="legend">
         <div class="leg"><div class="ldot" style="background:#5599ff"></div>Solo</div>
         <div class="leg"><div class="ldot" style="background:#ff8844"></div>Family</div>
@@ -1261,61 +1184,41 @@ canvas#c{display:block;border-radius:6px;border:1px solid #1e2535}
         <div class="leg"><div class="lsq" style="background:#c07010"></div>Desk busy</div>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
-const API='http://localhost:8000';
-const W=800,H=490,N=20,FPS=60,QGAP=15,SPD=2.8,BALK=14;
+const W=800,H=490,N=20,FPS=60,QGAP=15,SPD=2.8,BALK=14,BASE_CI=90;
+const SIM_START_H=6,SIM_START_M=0; // simulation clock starts at 06:00
+let OPEN_THRESH=5;
+let simSpeed=5,running=false,frame=0;
+let processed=0,balked=0,totalWait=0,ciCount=0,openCount=1,closeLow=0;
 
-// thresholds loaded from API — fallback matches thresholds.yaml defaults
-let thresholds={baseline_desks:1,levels:[]};
-
-// sim state
-let ciTime=90, spawnRate=30, running=false, frame=0;
-let processed=0, balked=0, totalWait=0, ciCount=0, openCount=10;
-const pax=[], desks=[];
-
-// window mode state
-let fData=[];       // forecast predictions
-let aData=[];       // alerts
-let selIdx=-1;      // selected window index
-let winRemain=0;    // pax still to spawn
-let winTotal=0;     // total pax for selected window
-let winLabel='';    // HH:MM label
-let winDone=false;  // window fully spawned
-
-// pulse for entrance animation
+function simClock(){
+  const totalSec=frame/FPS*simSpeed;
+  const h=Math.floor(SIM_START_H+totalSec/3600)%24;
+  const m=Math.floor((SIM_START_M+totalSec/60)%60);
+  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;
+}
 let pulse=0;
-
-// speed & full-day
-let simSpeed=5;
-let fullDay=false;
-let dayIdx=0;
+const pax=[],desks=[];
 
 const TYPES=[
-  {name:'solo', r:4,  mult:1.0, col:'#5599ff', w:.60},
-  {name:'fam',  r:6,  mult:1.9, col:'#ff8844', w:.25},
-  {name:'biz',  r:4,  mult:.55, col:'#88ffcc', w:.15},
+  {name:'solo',r:4,mult:1.0,col:'#5599ff',w:.60},
+  {name:'fam', r:6,mult:1.9,col:'#ff8844',w:.25},
+  {name:'biz', r:4,mult:.55,col:'#88ffcc',w:.15},
 ];
-function pickType(){let c=0,rnd=Math.random();for(const t of TYPES){c+=t.w;if(rnd<c)return t;}return TYPES[0];}
+function pickType(){let c=0,r=Math.random();for(const t of TYPES){c+=t.w;if(r<c)return t;}return TYPES[0];}
 
-// ── Desk ──────────────────────────────────────────────────────────────────────
 class Desk{
   constructor(i,x,y,open){this.i=i;this.x=x;this.y=y;this.w=32;this.h=18;this.open=open;this.q=[];this.served=0;}
   get sc(){
     if(!this.open)return'#662020';
     const n=this.q.length;
-    if(n===0)return'#1d6640';
-    if(n<=3)return'#2a9455';
-    if(n<=6)return'#c07010';
-    return'#c03020';
+    if(n===0)return'#1d6640';if(n<=3)return'#2a9455';if(n<=6)return'#c07010';return'#c03020';
   }
   draw(cx){
-    const{x,y,w,h,sc,open,q,served,i}=this;
-    const lx=x-w/2,ty=y-h/2;
-    // Queue bar behind desk
+    const{x,y,w,h,sc,open,q,served,i}=this,lx=x-w/2,ty=y-h/2;
     if(open&&q.length>0){
       const f=Math.min(q.length/BALK,1),bh=f*52;
       const g=cx.createLinearGradient(lx,ty-bh-16,lx,ty-16);
@@ -1323,23 +1226,15 @@ class Desk{
       cx.fillStyle=g;cx.fillRect(lx+2,ty-bh-16,w-4,bh);
       cx.strokeStyle=sc+'44';cx.lineWidth=.8;cx.strokeRect(lx+2,ty-bh-16,w-4,bh);
     }
-    // Shadow
     cx.fillStyle='#05080e';cx.fillRect(lx+2,ty+h+1,w,3);
-    // Front face
     cx.fillStyle='#121a2c';cx.fillRect(lx,ty+h*.7,w,h*.3+2);
-    // Top face
     const dg=cx.createLinearGradient(lx,ty,lx,ty+h*.72);
     dg.addColorStop(0,'#1c2540');dg.addColorStop(1,'#141d36');
     cx.fillStyle=dg;cx.fillRect(lx,ty,w,h*.72);
-    // Status stripe
     cx.fillStyle=sc;cx.fillRect(lx,ty,w,3);
-    // Glint
     cx.fillStyle='#ffffff07';cx.fillRect(lx+2,ty+4,w-4,4);
-    // Status light
     cx.save();cx.shadowColor=sc;cx.shadowBlur=open?9:3;
-    cx.fillStyle=sc;cx.beginPath();cx.arc(x,ty-9,3.5,0,Math.PI*2);cx.fill();
-    cx.restore();
-    // Number
+    cx.fillStyle=sc;cx.beginPath();cx.arc(x,ty-9,3.5,0,Math.PI*2);cx.fill();cx.restore();
     cx.fillStyle='#7a9acc';cx.font='bold 9px Segoe UI,Arial';cx.textAlign='center';
     cx.fillText(i+1,x,ty+h*.5+2.5);
     if(served>0){cx.fillStyle='#556688aa';cx.font='8px Arial';cx.fillText(served,x,ty-19);}
@@ -1347,16 +1242,13 @@ class Desk{
   }
 }
 
-// ── Passenger ─────────────────────────────────────────────────────────────────
 class Pax{
   constructor(sx,sy){
-    this.type=pickType();
-    this.x=sx+(Math.random()-.5)*40;this.y=sy;
-    this.desk=null;this.state='WALK';
-    this.timer=0;this.wpts=[];this.wf=0;
+    this.type=pickType();this.x=sx+(Math.random()-.5)*40;this.y=sy;
+    this.desk=null;this.state='WALK';this.timer=0;this.wpts=[];this.wf=0;
     this.qox=(Math.random()-.5)*6;this.alpha=1;this.trail=[];
   }
-  get myCI(){return Math.max(1,Math.round(ciTime*this.type.mult/simSpeed));}
+  get myCI(){return Math.max(1,Math.round(BASE_CI*this.type.mult/simSpeed));}
   assign(ds){
     const op=ds.filter(d=>d.open);
     if(!op.length){this.state='BALK';balked++;return;}
@@ -1367,10 +1259,7 @@ class Pax{
   update(){
     this.trail.push({x:this.x,y:this.y});
     if(this.trail.length>5)this.trail.shift();
-    if(this.state==='BALK'){
-      this.x+=(Math.random()-.5)*1.2;this.y+=SPD*.6;
-      this.alpha=Math.max(0,this.alpha-.022);return;
-    }
+    if(this.state==='BALK'){this.x+=(Math.random()-.5)*1.2;this.y+=SPD*.6;this.alpha=Math.max(0,this.alpha-.022);return;}
     if(this.state==='WALK'){
       const qi=this.desk.q.indexOf(this);if(qi===-1)return;
       const tx=this.desk.x+this.qox,ty=this.desk.y+26+qi*QGAP;
@@ -1379,17 +1268,13 @@ class Pax{
     }else if(this.state==='CI'){
       this.timer++;this.wf++;
       if(this.timer>=this.myCI){
-        this.desk.q.shift();this.desk.served++;
-        totalWait+=this.wf;ciCount++;
-        this.state='OUT';
-        this.wpts=[[this.desk.x+30,this.desk.y-4],[this.desk.x+30,86]];
+        this.desk.q.shift();this.desk.served++;totalWait+=this.wf/FPS*simSpeed;ciCount++;
+        this.state='OUT';this.wpts=[[this.desk.x+30,this.desk.y-4],[this.desk.x+30,86]];
       }
     }else if(this.state==='OUT'){
       if(this.wpts.length){const[tx,ty]=this.wpts[0];if(this._mv(tx,ty))this.wpts.shift();}
       else this.state='EXIT';
-    }else if(this.state==='EXIT'){
-      this.y-=SPD*1.3;
-    }
+    }else if(this.state==='EXIT'){this.y-=SPD*1.3;}
   }
   _mv(tx,ty){
     const dx=tx-this.x,dy=ty-this.y,d=Math.hypot(dx,dy);
@@ -1400,28 +1285,22 @@ class Pax{
     cx.globalAlpha=this.alpha;
     const col={WALK:this.type.col,CI:'#44cc88',OUT:'#ffcc44',EXIT:'#99aabb',BALK:'#ff5544'}[this.state]||this.type.col;
     for(let i=1;i<this.trail.length;i++){
-      const a=i/this.trail.length*.2;
-      cx.strokeStyle=col;cx.globalAlpha=this.alpha*a;
+      cx.strokeStyle=col;cx.globalAlpha=this.alpha*(i/this.trail.length*.2);
       cx.lineWidth=this.type.r*.9;cx.lineCap='round';
-      cx.beginPath();cx.moveTo(this.trail[i-1].x,this.trail[i-1].y);
-      cx.lineTo(this.trail[i].x,this.trail[i].y);cx.stroke();
+      cx.beginPath();cx.moveTo(this.trail[i-1].x,this.trail[i-1].y);cx.lineTo(this.trail[i].x,this.trail[i].y);cx.stroke();
     }
     cx.globalAlpha=this.alpha;
     if(this.state==='CI'){cx.shadowColor=col;cx.shadowBlur=14;}
-    cx.fillStyle=col;
-    cx.beginPath();cx.arc(this.x,this.y,this.type.r,0,Math.PI*2);cx.fill();
+    cx.fillStyle=col;cx.beginPath();cx.arc(this.x,this.y,this.type.r,0,Math.PI*2);cx.fill();
     if(this.type.name==='fam'){cx.fillStyle='#ffffff25';cx.beginPath();cx.arc(this.x,this.y,this.type.r*.4,0,Math.PI*2);cx.fill();}
     cx.shadowBlur=0;cx.globalAlpha=1;
   }
 }
 
-// ── Canvas & desks ────────────────────────────────────────────────────────────
 const canvas=document.getElementById('c');
 const dpr=window.devicePixelRatio||1;
-canvas.width=W*dpr;
-canvas.height=H*dpr;
-canvas.style.width=W+'px';
-canvas.style.height=H+'px';
+canvas.width=W*dpr;canvas.height=H*dpr;
+canvas.style.width=W+'px';canvas.style.height=H+'px';
 const cx=canvas.getContext('2d');
 cx.scale(dpr,dpr);
 
@@ -1429,278 +1308,33 @@ function initDesks(n){
   desks.length=0;
   const sx=38,sp=Math.floor((W-76)/(N-1));
   for(let i=0;i<N;i++)desks.push(new Desk(i,sx+i*sp,H/2,i<n));
-  openCount=n;
-  document.getElementById('sd').textContent=n;
+  openCount=n;document.getElementById('sd').textContent=n;
 }
 
 function setOpenDesks(n){
   openCount=n;
   for(let i=0;i<desks.length;i++){
-    const was=desks[i].open;
-    desks[i].open=i<n;
-    if(was&&!desks[i].open){
-      for(const p of desks[i].q){p.state='WALK';p.assign(desks);}
-      desks[i].q=[];
-    }
+    const was=desks[i].open;desks[i].open=i<n;
+    if(was&&!desks[i].open){for(const p of desks[i].q){p.state='WALK';p.assign(desks);}desks[i].q=[];}
   }
   document.getElementById('sd').textContent=n;
 }
 
-// ── Forecast helpers ──────────────────────────────────────────────────────────
-function desksAtWindow(idx){
-  if(!fData.length)return 1;
-  const winTime=fData[idx].window_start;
-  // replay alert history — only alerts that set a total desk count
-  const relevant=aData
-    .filter(a=>a.window_start<=winTime && a.desks_to_open!=null)
-    .sort((a,b)=>a.window_start.localeCompare(b.window_start));
-  if(relevant.length)return relevant[relevant.length-1].desks_to_open;
-  // fallback: derive from API thresholds (sorted high→low)
-  const load=fData[idx].predicted_load||0;
-  for(const l of thresholds.levels){
-    if(load>=l.threshold)return l.desks_to_open;
-  }
-  return thresholds.baseline_desks||1;
-}
-
-function alertAtWindow(idx){
-  if(!fData.length)return null;
-  const winTime=fData[idx].window_start;
-  return aData.find(a=>a.window_start===winTime)||null;
-}
-
-function loadColor(pax){
-  if(pax<=0)return'#1a2030';
-  if(pax<50)return'rgba(50,100,190,0.8)';
-  if(pax<100)return'rgba(60,140,100,0.85)';
-  if(pax<150)return'rgba(200,150,30,0.85)';
-  return'rgba(200,70,50,0.85)';
-}
-
-// ── Timeline ──────────────────────────────────────────────────────────────────
-function buildTimeline(){
-  const row=document.getElementById('timeline');
-  if(!fData.length){row.innerHTML='<div class="no-fc">Load forecast to see timeline</div>';return;}
-  row.innerHTML='';
-  const maxLoad=Math.max(...fData.map(w=>w.predicted_load||0),1);
-  fData.forEach((w,i)=>{
-    const load=w.predicted_load||0;
-    const timeStr=(w.window_start||'').split(' ')[1]?.slice(0,5)||'';
-    const alert=alertAtWindow(i);
-    const fillH=Math.max(4,Math.round((load/maxLoad)*28));
-    const col=loadColor(load);
-
-    const block=document.createElement('div');
-    block.className='tblock'+(i===selIdx?' selected':'');
-    block.title=timeStr+' — '+load+' pax'+(alert?' — '+alert.message:'');
-    block.dataset.idx=i;
-
-    const bar=document.createElement('div');
-    bar.className='tblock-bar';
-    bar.style.cssText='height:30px;background:#1a2030;border-radius:2px;display:flex;align-items:flex-end;overflow:hidden';
-    const fill=document.createElement('div');
-    fill.style.cssText='width:100%;height:'+fillH+'px;background:'+col+';border-radius:1px';
-    bar.appendChild(fill);
-
-    const lbl=document.createElement('div');
-    lbl.className='tblock-lbl';
-    lbl.textContent=timeStr;
-
-    if(alert){
-      const dot=document.createElement('div');
-      dot.className='alert-dot';
-      dot.style.background=alert.type==='checkin_open'?'#ff6644':'#44dd88';
-      block.appendChild(dot);
-    }
-
-    block.appendChild(bar);
-    block.appendChild(lbl);
-    block.addEventListener('click',()=>selectWindow(i));
-    row.appendChild(block);
-  });
-}
-
-function selectWindow(idx){
-  selIdx=idx;
-  buildTimeline();  // re-render with new selected
-  showWindowCard(idx);
-  // scroll selected into view
-  const blocks=document.querySelectorAll('.tblock');
-  if(blocks[idx])blocks[idx].scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-}
-
-function showWindowCard(idx){
-  const w=fData[idx];
-  const load=w.predicted_load||0;
-  const desks=desksAtWindow(idx);
-  const alert=alertAtWindow(idx);
-  const timeStr=(w.window_start||'').split(' ')[1]?.slice(0,5)||'--:--';
-
-  document.getElementById('wcTime').textContent=timeStr;
-  document.getElementById('wcPax').textContent=load+' pax';
-
-  const dEl=document.getElementById('wcDesks');
-  dEl.textContent=desks+' desk'+(desks!==1?'s':'');
-  dEl.className='win-card-val';
-
-  const sEl=document.getElementById('wcStatus');
-  if(alert){
-    sEl.textContent=alert.status;
-    sEl.className='win-card-val '+(alert.type==='checkin_open'?'alert-open':'alert-close');
-    const aEl=document.getElementById('wcAlert');
-    aEl.textContent=alert.message;
-    aEl.className='alert-msg '+(alert.type==='checkin_open'?'open':'close');
-    aEl.style.display='block';
-  } else {
-    sEl.textContent='No alert';sEl.className='win-card-val';
-    document.getElementById('wcAlert').style.display='none';
-  }
-
-  document.getElementById('winCard').style.display='block';
-}
-
-// ── Load window into simulation ───────────────────────────────────────────────
-function loadWindowSim(idx){
-  const w=fData[idx];
-  const load=w.predicted_load||0;
-  const desksN=desksAtWindow(idx);
-  const timeStr=(w.window_start||'').split(' ')[1]?.slice(0,5)||'';
-
-  if(load===0){msg('No passengers expected in this window',false);return;}
-
-  // Reset sim state
-  running=false;frame=0;processed=0;balked=0;totalWait=0;ciCount=0;
-  pax.length=0;
-
-  // Apply forecast data
-  setOpenDesks(desksN);
-
-  // ciTime: scaled so desks run at ~80% utilisation regardless of load/speed
-  ciTime=Math.max(20,Math.round(desksN*FPS*90/Math.max(load,1)/1.25));
-
-  // Compress 30 min into ~90 seconds at 1x, divided by simSpeed
-  spawnRate=Math.max(1,Math.round(FPS*90/load/simSpeed));
-
-  winRemain=load;winTotal=load;winLabel=timeStr;winDone=false;
-
-  document.getElementById('btnStart').disabled=false;
-  document.getElementById('btnPause').disabled=true;
-  updateProgress();
-  msg('Window '+timeStr+' loaded — press Start',true);
-}
-
-function loadWindowForDay(idx){
-  const w=fData[idx];
-  const load=w.predicted_load||0;
-  const desksN=desksAtWindow(idx);
-  const timeStr=(w.window_start||'').split(' ')[1]?.slice(0,5)||'';
-  setOpenDesks(desksN);
-  frame=0;pax.length=0;winDone=false;
-  if(load>0){
-    ciTime=Math.max(20,Math.round(desksN*FPS*90/Math.max(load,1)/1.25));
-    spawnRate=Math.max(1,Math.round(FPS*90/load/simSpeed));
-    winTotal=load;winRemain=load;
-  } else {
-    winTotal=0;winRemain=0;  // empty window — skip instantly
-  }
-  winLabel=timeStr;selIdx=idx;
-  buildTimeline();
-  showWindowCard(idx);
-  // scroll timeline to current block
-  const blocks=document.querySelectorAll('.tblock');
-  if(blocks[idx])blocks[idx].scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-  // update day progress label
-  const dp=document.getElementById('dayProg');
-  dp.style.display='block';
-  dp.textContent='Window '+(idx+1)+' / '+fData.length+' — '+timeStr;
-}
-
-function startFullDay(){
-  if(!fData.length){msg('Load forecast first',false);return;}
-  fullDay=true;dayIdx=0;
-  processed=0;balked=0;totalWait=0;ciCount=0;
-  winDone=false;
-  running=true;
-  document.getElementById('btnStart').disabled=true;
-  document.getElementById('btnPause').disabled=false;
-  document.getElementById('btnDay').disabled=true;
-  loadWindowForDay(0);
-  msg('Simulating full day at '+simSpeed+'x…',true);
-}
-
-function updateProgress(){
-  const spawned=winTotal-winRemain;
-  const pct=winTotal>0?Math.round(spawned/winTotal*100):0;
-  document.getElementById('progBar').style.width=pct+'%';
-  if(winTotal>0){
-    document.getElementById('progLbl').textContent=
-      winLabel ? winLabel+' — '+spawned+' / '+winTotal+' pax spawned ('+pct+'%)' : '';
-  } else {
-    document.getElementById('progLbl').textContent='';
-  }
-}
-
-// ── Simulation loop ───────────────────────────────────────────────────────────
 function tick(){
   if(!running)return;
   frame++;
-
-  // Dynamic desk management — react to live queue depth every 45 frames
-  if(running && frame%45===0 && winTotal>0){
-    const openDs=desks.filter(d=>d.open);
-    const totalQ=openDs.reduce((s,d)=>s+d.q.length,0);
-    const avgQ=openDs.length?totalQ/openDs.length:0;
-    const maxDesks=Math.max(desksAtWindow(selIdx>=0?selIdx:0),openCount);
-    if(avgQ>5 && openCount<Math.min(N,maxDesks+2)) setOpenDesks(openCount+1);
-    else if(avgQ<1 && winRemain===0 && openCount>1) setOpenDesks(openCount-1);
+  // Spawn one passenger every ~1s at 1x, scales with simSpeed
+  if(frame%Math.max(2,Math.round(60/simSpeed))===0){
+    const p=new Pax(W/2,H-20);p.assign(desks);pax.push(p);
   }
-
-  // Spawn passengers
-  if(frame%Math.max(2,spawnRate)===0){
-    if(winTotal>0){
-      // window mode: spawn exactly winTotal passengers
-      if(winRemain>0){
-        const p=new Pax(W/2,H-20);p.assign(desks);pax.push(p);
-        winRemain--;
-        updateProgress();
-      }
-    } else {
-      // free-run mode
-      const p=new Pax(W/2,H-20);p.assign(desks);pax.push(p);
-    }
+  // Open/close desks based on avg queue depth — check every 45 frames
+  if(frame%45===0){
+    const od=desks.filter(d=>d.open);
+    const avgQ=od.length?od.reduce((s,d)=>s+d.q.length,0)/od.length:0;
+    if(avgQ>OPEN_THRESH&&openCount<N){setOpenDesks(openCount+1);closeLow=0;}
+    else if(avgQ<1&&openCount>1){if(++closeLow>=3){setOpenDesks(openCount-1);closeLow=0;}}
+    else{closeLow=0;}
   }
-
-  // Mark window done when all spawned AND system empty (or window was empty)
-  if(!winDone){
-    const isEmpty=winTotal===0;
-    const allClear=winTotal>0&&winRemain===0&&pax.length===0&&frame>30;
-    if(isEmpty||allClear) winDone=true;
-  }
-
-  // Advance full-day or stop single-window
-  if(winDone){
-    if(fullDay){
-      if(dayIdx<fData.length-1){
-        dayIdx++;
-        loadWindowForDay(dayIdx);
-      } else {
-        // Day finished
-        fullDay=false;running=false;
-        document.getElementById('btnStart').disabled=false;
-        document.getElementById('btnPause').disabled=true;
-        document.getElementById('btnDay').disabled=false;
-        document.getElementById('dayProg').textContent='Day complete — '+processed+' processed';
-        msg('Full day complete — '+processed+' processed',true);
-      }
-    } else if(winTotal>0&&running){
-      // Single window mode — stop once
-      running=false;
-      document.getElementById('btnStart').disabled=false;
-      document.getElementById('btnPause').disabled=true;
-      msg('Window complete — '+processed+' processed',true);
-    }
-  }
-
   for(let i=pax.length-1;i>=0;i--){
     pax[i].update();
     if(pax[i].y<0||(pax[i].state==='BALK'&&pax[i].alpha<=0)){
@@ -1710,7 +1344,6 @@ function tick(){
   }
 }
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
 function drawBg(){
   cx.fillStyle='#0b0e16';cx.fillRect(0,0,W,H);
   cx.strokeStyle='#121828';cx.lineWidth=.5;
@@ -1730,8 +1363,7 @@ function drawBg(){
   cx.fillStyle='#1a3a5566';cx.font='13px Arial';
   for(let x=W/2-120;x<=W/2+120;x+=40)cx.fillText('▲',x,65);
   cx.strokeStyle='#1a3a5044';cx.lineWidth=1.2;cx.setLineDash([9,7]);
-  cx.beginPath();cx.moveTo(16,81);cx.lineTo(W-16,81);cx.stroke();
-  cx.setLineDash([]);
+  cx.beginPath();cx.moveTo(16,81);cx.lineTo(W-16,81);cx.stroke();cx.setLineDash([]);
   cx.fillStyle='#4a6a88aa';cx.font='bold 9px Segoe UI,Arial';cx.textAlign='left';
   cx.fillText('CHECK-IN HALL',10,96);
   pulse=(pulse+.035)%(Math.PI*2);
@@ -1747,17 +1379,18 @@ function drawBg(){
 }
 
 function drawOverlay(){
-  if(!winLabel)return;
-  const spawned=winTotal>0?winTotal-winRemain:0;
-  let txt=winLabel+'  |  '+openCount+' desks  |  '+simSpeed+'x';
-  if(winTotal>0)txt=winLabel+'  |  '+spawned+'/'+winTotal+' pax  |  '+openCount+' desks  |  '+simSpeed+'x';
-  if(fullDay)txt='Day: '+(dayIdx+1)+'/'+fData.length+'  '+txt;
   cx.font='bold 12px Segoe UI,Arial';cx.textAlign='right';
-  const tw=cx.measureText(txt).width+18;
-  cx.fillStyle='#0d1420dd';
-  cx.beginPath();cx.roundRect(W-tw-6,6,tw+6,24,4);cx.fill();
-  cx.fillStyle=fullDay?'#dd99ff':'#a0ccee';
-  cx.fillText(txt,W-10,23);
+  // right pill: desks + speed
+  const rtxt=openCount+' desk'+(openCount!==1?'s':'')+' open  |  '+simSpeed+'x';
+  const rtw=cx.measureText(rtxt).width+18;
+  cx.fillStyle='#0d1420dd';cx.beginPath();cx.roundRect(W-rtw-6,6,rtw+6,24,4);cx.fill();
+  cx.fillStyle='#a0ccee';cx.fillText(rtxt,W-10,23);
+  // left pill: clock
+  cx.textAlign='left';
+  const ctxt='⏱ '+simClock();
+  const ctw=cx.measureText(ctxt).width+18;
+  cx.fillStyle='#0d1420dd';cx.beginPath();cx.roundRect(6,6,ctw,24,4);cx.fill();
+  cx.fillStyle='#ffd080';cx.fillText(ctxt,14,23);
 }
 
 function render(){
@@ -1772,7 +1405,7 @@ function render(){
   document.getElementById('sp').textContent=processed;
   document.getElementById('sb').textContent=balked;
   if(ciCount>0){
-    const avg=(totalWait/ciCount/FPS*simSpeed).toFixed(1);
+    const avg=(totalWait/ciCount).toFixed(1);
     const el=document.getElementById('sw');
     el.textContent=avg+'s';
     el.className='sval '+(+avg<30?'c-g':+avg<90?'c-y':'c-r');
@@ -1781,7 +1414,6 @@ function render(){
 
 function loop(){tick();render();requestAnimationFrame(loop);}
 
-// ── Buttons ───────────────────────────────────────────────────────────────────
 document.getElementById('btnStart').addEventListener('click',()=>{
   running=true;
   document.getElementById('btnStart').disabled=true;
@@ -1793,103 +1425,21 @@ document.getElementById('btnPause').addEventListener('click',()=>{
   document.getElementById('btnPause').disabled=true;
 });
 document.getElementById('btnReset').addEventListener('click',()=>{
-  running=false;frame=0;processed=0;balked=0;totalWait=0;ciCount=0;
-  winRemain=0;winTotal=0;winLabel='';winDone=false;fullDay=false;
-  pax.length=0;initDesks(openCount);
+  running=false;frame=0;processed=0;balked=0;totalWait=0;ciCount=0;closeLow=0;pulse=0;
+  pax.length=0;initDesks(1);
   document.getElementById('btnStart').disabled=false;
   document.getElementById('btnPause').disabled=true;
-  document.getElementById('btnDay').disabled=false;
-  document.getElementById('progBar').style.width='0%';
-  document.getElementById('progLbl').textContent='';
-  document.getElementById('dayProg').style.display='none';
 });
-document.getElementById('btnLoad').addEventListener('click',()=>{
-  if(selIdx>=0)loadWindowSim(selIdx);
+document.getElementById('slThresh').addEventListener('input',function(){
+  OPEN_THRESH=parseInt(this.value);
+  document.getElementById('lblThresh').textContent=OPEN_THRESH;
 });
-
-
-// ── Speed & full-day ─────────────────────────────────────────────────────────
 document.getElementById('slSpeed').addEventListener('input',function(){
   simSpeed=parseInt(this.value);
   document.getElementById('lblSpeed').textContent=simSpeed+'x';
-  // If a window is loaded but not yet started, recalculate spawn rate
-  if(winTotal>0&&winRemain===winTotal){
-    spawnRate=Math.max(1,Math.round(FPS*90/winTotal/simSpeed));
-  }
-});
-document.getElementById('btnDay').addEventListener('click',startFullDay);
-
-// ── Status message ─────────────────────────────────────────────────────────────
-function msg(txt,ok){
-  const el=document.getElementById('smsg');
-  el.textContent=txt;el.className='smsg '+(ok?'ok':'err');
-  setTimeout(()=>el.className='smsg',5000);
-}
-
-// ── API ───────────────────────────────────────────────────────────────────────
-async function loadForecast(){
-  try{
-    const [fr,ar]=await Promise.all([
-      fetch(`${API}/forecast`),
-      fetch(`${API}/alerts`)
-    ]);
-    if(!fr.ok){const err=await fr.json().catch(()=>({}));throw new Error(err.detail||'Forecast not available — upload schedule and press Load Forecast');}
-    fData=await fr.json();
-    aData=ar.ok?await ar.json():[];
-    if(!Array.isArray(fData)||fData.length===0)throw new Error('No check-in forecast — press Train then Load Forecast');
-    buildTimeline();
-    msg('Loaded '+fData.length+' windows, '+aData.length+' alerts',true);
-  }catch(e){
-    msg(e.message,false);
-    buildTimeline();
-  }
-}
-
-document.getElementById('btnTrain').addEventListener('click',async()=>{
-  const b=document.getElementById('btnTrain');b.disabled=true;
-  try{
-    const r=await fetch(`${API}/forecast/train`,{method:'POST'});
-    const d=await r.json();if(!r.ok)throw new Error(d.detail||'failed');
-    msg('Trained on '+d.training_flights+' flights',true);
-  }catch(e){msg('Train failed: '+e.message,false);}
-  finally{b.disabled=false;}
 });
 
-document.getElementById('btnForecast').addEventListener('click',async()=>{
-  const b=document.getElementById('btnForecast');b.disabled=true;
-  try{
-    const r=await fetch(`${API}/forecast/run`,{method:'POST'});
-    const d=await r.json();if(!r.ok)throw new Error(d.detail||'failed');
-    fData=d.predictions||[];
-    const ar=await fetch(`${API}/alerts`);
-    aData=ar.ok?await ar.json():[];
-    buildTimeline();
-    msg(d.windows_predicted+' windows  •  '+d.alerts_generated+' alerts',true);
-  }catch(e){msg('Forecast failed: '+e.message,false);}
-  finally{b.disabled=false;}
-});
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
-async function bootSim(){
-  try{
-    const [ds,th]=await Promise.all([
-      fetch(`${API}/alerts/desks`),
-      fetch(`${API}/thresholds`),
-    ]);
-    const dd=ds.ok?await ds.json():null;
-    if(th.ok){
-      const cfg=await th.json();
-      const ci=cfg.checkin||{};
-      thresholds.baseline_desks=ci.baseline_desks||1;
-      thresholds.levels=Object.values(ci)
-        .filter(v=>v&&typeof v==='object'&&v.threshold!=null)
-        .sort((a,b)=>b.threshold-a.threshold);
-    }
-    initDesks(dd?.desks_open??thresholds.baseline_desks);
-  }catch(e){initDesks(1);}
-  await loadForecast();
-}
-bootSim();
+initDesks(1);
 loop();
 </script>
 </body>
@@ -1918,7 +1468,7 @@ elif page == "Security":
     with lc2:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", key="update_lanes", use_container_width=True):
-            requests.post(f"{API_BASE}/security/lanes", json={"lanes_open": new_lane_count})
+            _session.post(f"{API_BASE}/security/lanes", json={"lanes_open": new_lane_count})
             st.rerun()
     with lc3:
         st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_lanes}</b> open lane(s)</div>", unsafe_allow_html=True)
@@ -1927,7 +1477,7 @@ elif page == "Security":
 
     if st.button("Run Security Forecast & Generate Alerts", type="primary", use_container_width=True):
         with st.spinner("Deriving security predictions from check-in…"):
-            r = requests.post(f"{API_BASE}/security/run", timeout=120)
+            r = _session.post(f"{API_BASE}/security/run", timeout=120)
         if r.ok:
             d = r.json()
             st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
@@ -2036,7 +1586,7 @@ elif page == "Security":
     with scol1:
         if st.button("Simulate Security Sensor (full day)", use_container_width=True):
             with st.spinner("Injecting security sensor data…"):
-                r = requests.post(f"{API_BASE}/security/sensor/simulate", timeout=30)
+                r = _session.post(f"{API_BASE}/security/sensor/simulate", timeout=30)
             if r.ok:
                 d = r.json()
                 st.success(f"{d.get('windows_injected', 0)} windows injected")
@@ -2046,7 +1596,7 @@ elif page == "Security":
     with scol2:
         if st.button("Reconcile vs Predictions", use_container_width=True):
             with st.spinner("Reconciling…"):
-                r = requests.post(f"{API_BASE}/security/sensor/reconcile", timeout=30)
+                r = _session.post(f"{API_BASE}/security/sensor/reconcile", timeout=30)
             if r.ok:
                 st.session_state["sec_reconcile"] = r.json()
                 st.rerun()
@@ -2055,7 +1605,7 @@ elif page == "Security":
     with scol3:
         if st.button("Auto-calibrate Flow Factor", use_container_width=True, help="Derives empirical flow_factor from matched check-in vs security sensor counts"):
             with st.spinner("Calibrating…"):
-                r = requests.post(f"{API_BASE}/security/sensor/calibrate", timeout=30)
+                r = _session.post(f"{API_BASE}/security/sensor/calibrate", timeout=30)
             if r.ok:
                 d = r.json()
                 if d.get("status") == "calibrated":
@@ -2155,7 +1705,7 @@ elif page == "Security":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
                     if st.button("Confirm", key=f"sec_ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/security/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        _session.post(f"{API_BASE}/security/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.rerun()
 
     with stab_open:
@@ -2185,7 +1735,7 @@ elif page == "Arrivals":
     with ac2:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", key="update_arr_agents", use_container_width=True):
-            requests.post(f"{API_BASE}/arrivals/agents", json={"agents_open": new_arr_count})
+            _session.post(f"{API_BASE}/arrivals/agents", json={"agents_open": new_arr_count})
             st.rerun()
     with ac3:
         st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently <b style='color:#4ade80'>{arr_agents}</b> crew deployed at arrivals</div>", unsafe_allow_html=True)
@@ -2196,7 +1746,7 @@ elif page == "Arrivals":
     with btn_col1:
         if st.button("Train Arrivals Model", use_container_width=True):
             with st.spinner("Training XGBoost on arrivals data (STA + 20 min bell curve)…"):
-                r = requests.post(f"{API_BASE}/arrivals/train", timeout=180)
+                r = _session.post(f"{API_BASE}/arrivals/train", timeout=180)
             if r.ok:
                 d = r.json()
                 m = d.get("metrics", {})
@@ -2206,7 +1756,7 @@ elif page == "Arrivals":
     with btn_col2:
         if st.button("Run Arrivals Forecast & Generate Alerts", type="primary", use_container_width=True):
             with st.spinner("Predicting arrivals load…"):
-                r = requests.post(f"{API_BASE}/arrivals/run", timeout=120)
+                r = _session.post(f"{API_BASE}/arrivals/run", timeout=120)
             if r.ok:
                 d = r.json()
                 st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
@@ -2311,7 +1861,7 @@ elif page == "Arrivals":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
                     if st.button("Confirm", key=f"arr_ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/arrivals/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        _session.post(f"{API_BASE}/arrivals/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
 
@@ -2342,7 +1892,7 @@ elif page == "Departures":
     with gc2:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("Update", key="update_agents", use_container_width=True):
-            requests.post(f"{API_BASE}/departures/agents", json={"agents_open": new_agent_count})
+            _session.post(f"{API_BASE}/departures/agents", json={"agents_open": new_agent_count})
             st.rerun()
     with gc3:
         st.markdown(f"<div style='margin-top:32px; color:#64748b; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600'>Currently tracking <b style='color:#4ade80'>{current_agents}</b> deployed agent(s)</div>", unsafe_allow_html=True)
@@ -2353,7 +1903,7 @@ elif page == "Departures":
     with dep_btn1:
         if st.button("Train Departures Gate Model", use_container_width=True):
             with st.spinner("Training XGBoost on departures gate data (STD − 45 min bell curve)…"):
-                r = requests.post(f"{API_BASE}/departures/train", timeout=180)
+                r = _session.post(f"{API_BASE}/departures/train", timeout=180)
             if r.ok:
                 d = r.json()
                 m = d.get("metrics", {})
@@ -2363,7 +1913,7 @@ elif page == "Departures":
     with dep_btn2:
         if st.button("Run Departures Forecast & Generate Alerts", type="primary", use_container_width=True):
             with st.spinner("Predicting departures gate load…"):
-                r = requests.post(f"{API_BASE}/departures/run", timeout=120)
+                r = _session.post(f"{API_BASE}/departures/run", timeout=120)
             if r.ok:
                 d = r.json()
                 st.success(f"{d['windows_predicted']} windows predicted · {d['alerts_generated']} alerts generated")
@@ -2474,7 +2024,7 @@ elif page == "Departures":
                     st.markdown("<div style='margin-top:18px'></div>", unsafe_allow_html=True)
                     emp = st.session_state.get("employee_name", "employee") or "employee"
                     if st.button("Confirm", key=f"dep_ack_{row['id']}"):
-                        requests.post(f"{API_BASE}/departures/alerts/{row['id']}/acknowledge", json={"employee": emp})
+                        _session.post(f"{API_BASE}/departures/alerts/{row['id']}/acknowledge", json={"employee": emp})
                         st.cache_data.clear()
                         st.rerun()
 
@@ -2498,7 +2048,7 @@ elif page == "Settings":
 """, unsafe_allow_html=True)
 
     try:
-        r = requests.get(f"{API_BASE}/thresholds", timeout=5)
+        r = _session.get(f"{API_BASE}/thresholds", timeout=5)
         if not r.ok:
             st.error("Could not load thresholds")
             st.stop()
@@ -2511,7 +2061,7 @@ elif page == "Settings":
         st.caption("Analyses historical windows to recommend thresholds. Congestion delays are factored in automatically.")
         if st.button("Analyse & recommend", use_container_width=True):
             with st.spinner("Analysing…"):
-                resp = requests.post(f"{API_BASE}/thresholds/auto-detect", timeout=30)
+                resp = _session.post(f"{API_BASE}/thresholds/auto-detect", timeout=30)
             if resp.ok:
                 data = resp.json()
                 rec  = data["recommended"]
@@ -2544,7 +2094,7 @@ elif page == "Settings":
 
         if st.session_state.get("auto_rec"):
             if st.button("Apply recommended thresholds", type="primary", use_container_width=True):
-                requests.post(f"{API_BASE}/thresholds/auto-detect?apply=true", timeout=30)
+                _session.post(f"{API_BASE}/thresholds/auto-detect?apply=true", timeout=30)
                 del st.session_state["auto_rec"]
                 st.cache_data.clear()
                 st.success("Thresholds updated")
@@ -2565,5 +2115,5 @@ elif page == "Settings":
                     "message":      st.text_input("Message",           value=lvl["message"], key=f"m_{key}"),
                 }
         if st.form_submit_button("Save", type="primary"):
-            resp = requests.post(f"{API_BASE}/thresholds", json=levels)
+            resp = _session.post(f"{API_BASE}/thresholds", json=levels)
             st.success("Saved") if resp.ok else st.error(f"Failed: {resp.text}")

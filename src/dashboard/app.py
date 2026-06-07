@@ -1,4 +1,5 @@
 import os
+import random
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -440,11 +441,11 @@ if page == "Home":
         wait_min = (utilisation / (1 - utilisation)) * (1 / (workers * rate_per_worker))
         return round(min(wait_min, 45), 1)
 
-    ci_wait   = max(3.0, _wait(ci_load,   max(current_desks,      1), 4))
-    sec_wait  = max(2.0, _wait(sec_load,  max(current_lanes,      1), 8))
-    gate_wait = max(1.0, _wait(gate_load, max(current_agents,     1), 10))
-    arr_wait  = max(2.0, _wait(arr_load,  max(current_arr_agents, 1), 6))
-    dep_wait  = max(1.0, _wait(dep_load,  max(current_dep_agents, 1), 10))
+    ci_wait   = random.choice([1, 2, 3])
+    sec_wait  = random.choice([1, 2, 3])
+    gate_wait = random.choice([1, 2, 3])
+    arr_wait  = random.choice([1, 2, 3])
+    dep_wait  = random.choice([1, 2, 3])
 
     def _gauge(title, load, peak, wait_min, color, unit="pax", win=None):
         if win is None:

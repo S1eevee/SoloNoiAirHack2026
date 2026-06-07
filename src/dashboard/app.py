@@ -15,7 +15,7 @@ _session = requests.Session()
 _session.headers.update({"X-API-Key": os.getenv("API_KEY", "")})
 
 st.set_page_config(
-    page_title="SoloNoi — Passenger Flow",
+    page_title="SoloAir",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -280,7 +280,7 @@ with st.sidebar:
     st.markdown("""
 <div style="padding:18px 0 12px">
   <div style="font-size:1.05rem;font-weight:900;color:#4ade80;letter-spacing:-0.01em">✈ SOLONOI</div>
-  <div style="font-size:0.68rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">Passenger Flow · IAS</div>
+  <div style="font-size:0.68rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">SoloAir · IAS</div>
 </div>
 """, unsafe_allow_html=True)
 

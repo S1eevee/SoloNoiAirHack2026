@@ -32,7 +32,7 @@ _STORED_KEY_HASH = hashlib.new(_KEY_HASH_ALGO, _RAW_API_KEY.encode()).hexdigest(
 _PUBLIC_PREFIXES = ("/health", "/docs", "/openapi.json", "/redoc", "/auth/login", "/auth/register")
 
 app = FastAPI(
-    title="Passenger Flow Predictor API",
+    title="SoloAir API",
     description="AirHack 2026 — XGBoost-powered check-in demand forecasting + Mobile Employee Alerts",
     version="1.0.0",
 )

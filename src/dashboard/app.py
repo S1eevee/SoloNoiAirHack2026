@@ -2572,15 +2572,17 @@ elif page == "Settings":
             st.success("Saved") if resp.ok else st.error(f"Failed: {resp.text}")
 
 
-# ── Predictor ──────────────────────────────────────────────────────────────────
+# ── Live Monitor ───────────────────────────────────────────────────────────────
 
-elif page == "Predictor":
+elif page == "Live Monitor":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
-  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Passenger Flow Predictor &nbsp;·&nbsp; External Tool</div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Live Monitor &nbsp;·&nbsp; External Tool</div>
 </div>
 """, unsafe_allow_html=True)
     
     components.iframe("https://passenger-flow-predictor.onrender.com/", height=800, scrolling=True)
+
+ scrolling=True)
 

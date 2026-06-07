@@ -130,7 +130,7 @@ fun DashboardScreen(navController: NavHostController) {
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
-                    Text("View Predictor")
+                    Text("Live Monitor")
                 }
                 
                 Button(

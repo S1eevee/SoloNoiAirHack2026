@@ -279,7 +279,7 @@ def fetch_sidebar_status() -> dict:
 with st.sidebar:
     st.markdown("""
 <div style="padding:18px 0 12px">
-  <div style="font-size:1.05rem;font-weight:900;color:#4ade80;letter-spacing:-0.01em">✈ SOLONOI</div>
+  <div style="font-size:1.05rem;font-weight:900;color:#4ade80;letter-spacing:-0.01em">✈ SOLOAIR</div>
   <div style="font-size:0.68rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.12em;margin-top:3px">SoloAir · IAS</div>
 </div>
 """, unsafe_allow_html=True)

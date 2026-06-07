@@ -21,6 +21,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+_markdown = st.markdown
+
+
+def _markdown_or_html(body, *args, unsafe_allow_html=False, **kwargs):
+    if unsafe_allow_html and isinstance(body, str) and hasattr(st, "html"):
+        return st.html(body)
+    return _markdown(body, *args, unsafe_allow_html=unsafe_allow_html, **kwargs)
+
+
+st.markdown = _markdown_or_html
+
 # ── Global styles ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>

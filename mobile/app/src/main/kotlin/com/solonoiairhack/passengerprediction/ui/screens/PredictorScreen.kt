@@ -17,7 +17,7 @@ fun PredictorScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Live Monitor") },
+                title = { Text("Passenger Flow Predictor") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Text("Back")

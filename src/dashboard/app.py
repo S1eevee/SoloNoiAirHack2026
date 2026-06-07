@@ -1898,7 +1898,7 @@ loop();
 </body>
 </html>"""
 
-    components.html(_SIM_HTML, height=700, scrolling=False)
+    components.html(_SIM_HTML.replace("http://localhost:8000", API_BASE), height=700, scrolling=False)
 
 
 # ── Security ───────────────────────────────────────────────────────────────────
@@ -2572,17 +2572,19 @@ elif page == "Settings":
             st.success("Saved") if resp.ok else st.error(f"Failed: {resp.text}")
 
 
-# ── Live Monitor ───────────────────────────────────────────────────────────────
+# ── Passenger Flow Predictor ───────────────────────────────────────────────────
 
-elif page == "Live Monitor":
+elif page == "Passenger Flow Predictor":
     st.markdown("""
 <div class="ias-hero">
   <div class="ias-row"><span class="ias-code">IAS</span><span class="ias-title">Iași Airport</span></div>
-  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Live Monitor &nbsp;·&nbsp; External Tool</div>
+  <div class="ias-sub">Iași, RO &nbsp;·&nbsp; Passenger Flow Predictor &nbsp;·&nbsp; External Tool</div>
 </div>
 """, unsafe_allow_html=True)
     
     components.iframe("https://passenger-flow-predictor.onrender.com/", height=800, scrolling=True)
 
  scrolling=True)
+
+rolling=True)
 

@@ -23,5 +23,8 @@ fun AppNavigation() {
         composable("dashboard") {
             DashboardScreen(navController)
         }
+        composable("predictor") {
+            PredictorScreen(navController)
+        }
     }
 }

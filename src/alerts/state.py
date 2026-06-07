@@ -1,10 +1,12 @@
 import sqlite3
 import json
+import os
 import yaml
 from datetime import datetime
 from pathlib import Path
 
-DB_PATH     = Path(__file__).parents[2] / "data" / "alerts.db"
+DEFAULT_DB_PATH = Path(__file__).parents[2] / "data" / "processed" / "alerts.db"
+DB_PATH     = Path(os.getenv("ALERT_DB_PATH", str(DEFAULT_DB_PATH)))
 CONFIG_PATH = Path(__file__).parents[2] / "config" / "thresholds.yaml"
 
 

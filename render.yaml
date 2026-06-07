@@ -1,24 +1,26 @@
 services:
   - type: web
-    name: solonoi-api
-    env: python
+    name: solonoi-airhack
+    runtime: docker
     region: frankfurt
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
-
-  - type: web
-    name: solonoi-dashboard
-    env: python
-    region: frankfurt
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run src/dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
     envVars:
       - key: API_BASE
-        value: https://solonoi-api.onrender.com
-      - key: PYTHON_VERSION
-        value: 3.11.0
+        value: http://127.0.0.1:8000
+      - key: PUBLIC_API_BASE
+        value: /api
+      - key: FASTAPI_ROOT_PATH
+        value: /api
+      - key: PERSISTENT_STORAGE_DIR
+        value: /var/data
+      - key: API_KEY_HASH_ALGO
+        value: sha256
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: SECRET_KEY
+        generateValue: true
+      - key: API_KEY
+        generateValue: true

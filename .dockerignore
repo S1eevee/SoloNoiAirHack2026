@@ -1,0 +1,16 @@
+.git
+.env
+.venv
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+data/processed/
+data/raw/
+models/*.pkl
+mobile/.gradle/
+mobile/**/build/
+codex-*.log

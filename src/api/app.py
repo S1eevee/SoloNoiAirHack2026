@@ -35,6 +35,7 @@ app = FastAPI(
     title="SoloAir API",
     description="AirHack 2026 — XGBoost-powered check-in demand forecasting + Mobile Employee Alerts",
     version="1.0.0",
+    root_path=os.getenv("FASTAPI_ROOT_PATH", ""),
 )
 
 

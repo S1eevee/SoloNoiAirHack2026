@@ -74,6 +74,10 @@ src/dashboard/app.py        src/llm/insights.py
 
 ## Quick Start
 
+## Render Deployment
+
+This repo is prepared for a single Render web service: Streamlit is served at `/` and FastAPI is served at `/api` from the same public URL. See [DEPLOYMENT.md](DEPLOYMENT.md) for the exact Render web interface settings.
+
 ### 1. Clone and set up environment
 ```bash
 git clone https://github.com/S1eevee/SoloNoiAirHack2026.git

@@ -3,6 +3,7 @@
 import os
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -18,7 +19,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24  # 30 days
 _is_asymmetric = ALGORITHM.startswith(("RS", "ES", "PS"))
 _SIGNING_KEY = os.getenv("JWT_PRIVATE_KEY", SECRET_KEY) if _is_asymmetric else SECRET_KEY
 _VERIFY_KEY  = os.getenv("JWT_PUBLIC_KEY",  SECRET_KEY) if _is_asymmetric else SECRET_KEY
-DB_PATH = "auth.db"
+DB_PATH = Path(os.getenv("AUTH_DB_PATH", "data/processed/auth.db"))
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -45,6 +46,7 @@ class Token(BaseModel):
 # Database initialization
 def init_auth_db():
     """Create users table if it doesn't exist."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users

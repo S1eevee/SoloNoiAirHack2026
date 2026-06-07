@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+PUBLIC_API_BASE = os.getenv("PUBLIC_API_BASE", API_BASE)
 _session = requests.Session()
 _session.headers.update({"X-API-Key": os.getenv("API_KEY", "")})
 
@@ -1446,7 +1447,7 @@ loop();
 </body>
 </html>"""
 
-    components.html(_SIM_HTML.replace("http://localhost:8000", API_BASE), height=700, scrolling=False)
+    components.html(_SIM_HTML.replace("http://localhost:8000", PUBLIC_API_BASE), height=700, scrolling=False)
 
 
 # ── Security ───────────────────────────────────────────────────────────────────
